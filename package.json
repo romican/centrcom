@@ -1,0 +1,14 @@
+{
+  "name": "bus-management",
+  "version": "1.0.0",
+  "description": "Управление автобусными заявками",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "docx": "^9.6.1",
+    "express": "^4.22.1",
+    "sqlite3": "^5.1.7"
+  }
+}

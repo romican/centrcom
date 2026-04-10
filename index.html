@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ЦЕНТРком — Управление</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/documents.css">
+  <link rel="stylesheet" href="css/platoons.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="app-container">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <button class="toggle-btn" id="toggleSidebarBtn"><i class="fas fa-bars"></i></button>
+      <div class="logo">ЦЕНТРком</div>
+    </div>
+<nav class="sidebar-nav">
+  <a href="#" class="nav-item" data-section="buses"><i class="fas fa-truck"></i><span>Логистика</span></a>
+  <div class="nav-group" id="collectionsGroup">
+    <a href="#" class="nav-item" data-section="collections"><i class="fas fa-users"></i><span>Сборы</span></a>
+    <div id="platoonsSubmenu" class="submenu">
+      <a href="#" class="nav-item sub-item" data-section="platoons"><i class="fas fa-layer-group"></i><span>Взвода</span></a>
+    </div>
+  </div>
+  <a href="#" class="nav-item" data-section="invoices"><i class="fas fa-file-invoice"></i><span>Счета</span></a>
+  <a href="#" class="nav-item" data-section="documents"><i class="fas fa-file-alt"></i><span>Документы</span></a>
+  <a href="#" class="nav-item" data-section="employees"><i class="fas fa-user-tie"></i><span>Сотрудники</span></a>
+</nav>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-header">
+      <h1 id="sectionTitle">Логистика</h1>
+      <button class="theme-toggle" id="themeToggleBtn"><i class="fas fa-moon"></i></button>
+    </div>
+    <div class="content-body" id="contentBody"></div>
+    <button class="fab" id="addButton"><i class="fas fa-plus"></i></button>
+  </main>
+</div>
+
+<!-- ========== МОДАЛЬНЫЕ ОКНА ========== -->
+
+<!-- Модалка для логистики (добавление/редактирование заявки) -->
+<div class="modal" id="addModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-truck"></i> Новая заявка</h2>
+      <button class="close-modal" id="closeModalBtn">&times;</button>
+    </div>
+    <form id="addForm">
+      <div class="form-row">
+        <div class="form-group"><label><i class="fas fa-calendar-alt"></i> Дата заезда</label><input type="date" id="dateStart" required></div>
+        <div class="form-group"><label><i class="fas fa-calendar-check"></i> Дата выезда</label><input type="date" id="dateEnd" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label><i class="fas fa-chart-line"></i> Неделя/год</label><input type="text" id="weekYear" placeholder="W12-2025" required></div>
+        <div class="form-group"><label><i class="fas fa-tags"></i> Вид сборов</label>
+          <select id="collectionType" required>
+            <option value="" disabled selected>– Выберите –</option>
+            <option>Контракт</option><option>Дневные</option><option>Кадеты</option>
+            <option>Медицина</option><option>Экскурсия</option><option>Зарница</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label><i class="fas fa-building"></i> Наименование ОО</label><input type="text" id="orgName" placeholder="ООО 'Транспортные решения'" required></div>
+      <div class="form-group"><label><i class="fas fa-map-marker-alt"></i> Адрес подачи транспорта</label><input type="text" id="address" placeholder="г. Москва, ул. Примерная, д. 1" required></div>
+      <div class="form-actions">
+        <button type="button" class="btn cancel" id="cancelModalBtn">Отменить</button>
+        <button type="submit" class="btn add">Добавить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка для сборов (создание) -->
+<div class="modal" id="collectionModal">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-users"></i> Новый сбор</h2>
+      <button class="close-modal" id="closeCollectionModalBtn">&times;</button>
+    </div>
+    <form id="collectionForm">
+      <div class="form-row">
+        <div class="form-group"><label><i class="fas fa-calendar-alt"></i> Дата заезда</label><input type="date" id="colDateStart" required></div>
+        <div class="form-group"><label><i class="fas fa-calendar-check"></i> Дата выезда</label><input type="date" id="colDateEnd" required></div>
+      </div>
+      <div class="form-group"><label><i class="fas fa-shield-alt"></i> Войсковая часть</label><input type="text" id="militaryUnit" placeholder="в/ч 12345" required></div>
+      <div class="form-actions">
+        <button type="button" class="btn cancel" id="cancelCollectionBtn">Отменить</button>
+        <button type="submit" class="btn add">Добавить сбор</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка для счетов (добавление) -->
+<div class="modal" id="invoiceModal">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-file-invoice"></i> Новый счёт</h2>
+      <button class="close-modal" id="closeInvoiceModalBtn">&times;</button>
+    </div>
+    <form id="invoiceForm">
+      <div class="form-group"><label><i class="fas fa-user"></i> Кто выставил</label><input type="text" id="issuer" placeholder="ООО 'Ромашка'" required></div>
+      <div class="form-group"><label><i class="fas fa-calendar-alt"></i> Дата выставления</label><input type="date" id="dateIssued" required></div>
+      <div class="form-group"><label><i class="fas fa-ruble-sign"></i> Сумма счёта</label><input type="number" step="0.01" id="amount" placeholder="0.00" required></div>
+      <div class="form-group"><label><i class="fas fa-hashtag"></i> Номер нашей заявки</label><input type="text" id="ourOrderNumber" placeholder="ЗА-2025-001" required></div>
+      <div class="form-group"><label><i class="fas fa-credit-card"></i> Платежи</label><input type="text" id="payments" placeholder="Оплачено: 50%"></div>
+      <div class="form-actions">
+        <button type="button" class="btn cancel" id="cancelInvoiceBtn">Отменить</button>
+        <button type="submit" class="btn add">Добавить счёт</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка для сотрудников (добавление) -->
+<div class="modal" id="employeeModal">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-user-plus"></i> Новый сотрудник</h2>
+      <button class="close-modal" id="closeEmployeeModalBtn">&times;</button>
+    </div>
+    <form id="employeeForm">
+      <div class="form-group"><label><i class="fas fa-user-tag"></i> Должность</label><input type="text" id="empPosition" placeholder="Водитель" required></div>
+      <div class="form-group"><label><i class="fas fa-user"></i> ФИО</label><input type="text" id="empFio" placeholder="Иванов Иван Иванович" required></div>
+      <div class="form-group"><label><i class="fas fa-calendar-alt"></i> Дата начала работы</label><input type="date" id="empStartDate" required></div>
+      <div class="form-group"><label><i class="fas fa-birthday-cake"></i> Дата рождения</label><input type="date" id="empBirthday" required></div>
+      <div class="form-group"><label><i class="fas fa-phone"></i> Телефон</label><input type="tel" id="empPhone" placeholder="+7 (123) 456-78-90" required></div>
+      <div class="form-actions">
+        <button type="button" class="btn cancel" id="cancelEmployeeBtn">Отменить</button>
+        <button type="submit" class="btn add">Добавить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка выбора сборов для документов -->
+<div class="modal" id="selectCollectionsModal">
+  <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-folder-open"></i> Выберите сборы</h2>
+      <button class="close-modal" id="closeSelectModalBtn">&times;</button>
+    </div>
+    <div style="padding: 16px 24px;">
+      <p style="margin-bottom: 16px;">Отметьте сборы, участников которых нужно включить в документ:</p>
+      <div id="collectionsChecklist" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button id="cancelSelectBtn" class="btn cancel">Отмена</button>
+        <button id="generateDocBtn" class="btn add">Сформировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка редактирования (общая) -->
+<div class="modal" id="editModal">
+  <div class="modal-content" id="editModalContent">
+    <!-- Содержимое подставляется динамически -->
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="js/main.js"></script>
+<script src="js/logistics.js"></script>
+<script src="js/collections.js"></script>
+<script src="js/platoons.js"></script>
+<script src="js/invoices.js"></script>
+<script src="js/employees.js"></script>
+<script src="js/documents.js"></script>
+</body>
+</html>

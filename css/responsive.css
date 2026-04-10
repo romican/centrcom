@@ -1,0 +1,49 @@
+/* ========== АДАПТИВНОСТЬ ========== */
+@media (max-width: 640px) {
+  .modal-content {
+    max-width: 95%;
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  .form-group {
+    min-width: auto;
+  }
+  #addForm, #collectionForm, #invoiceForm, #employeeForm {
+    padding: 8px 16px 4px 16px;
+  }
+  .modal-header {
+    padding: 20px 20px 12px 20px;
+  }
+  .form-actions {
+    padding: 12px 20px 24px 20px;
+  }
+  #searchPersonInput, #searchInvoiceInput {
+    width: 140px;
+  }
+  .documents-two-columns {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    height: 100vh;
+    transform: translateX(0);
+    z-index: 30;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 0;
+  }
+  .main-content {
+    padding: 20px 16px;
+  }
+  .fab {
+    bottom: 20px;
+    right: 20px;
+  }
+}

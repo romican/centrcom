@@ -1,0 +1,288 @@
+/* ========== РАЗДЕЛ ВЗВОДА ========== */
+.platoons-container {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.platoons-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+}
+
+.platoons-sidebar .select-collection {
+  margin-bottom: 20px;
+}
+
+.platoons-sidebar .select-collection label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.platoons-sidebar select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  font-family: inherit;
+}
+
+.platoons-sidebar h3 {
+  font-size: 1.2rem;
+  margin: 20px 0 12px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-platoon-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.add-platoon-btn:hover {
+  background: #2563eb;
+}
+
+.platoons-list {
+  list-style: none;
+  margin: 0 0 20px 0;
+  padding: 0;
+}
+
+.platoon-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.platoon-item:hover {
+  background: #e0f2fe;
+}
+.platoon-item.active {
+  background: #3b82f6;
+  color: white;
+}
+.platoon-item .platoon-name {
+  font-weight: 500;
+  flex: 1;
+}
+.platoon-item .platoon-count {
+  font-size: 0.8rem;
+  margin-right: 12px;
+  opacity: 0.8;
+}
+.platoon-item .platoon-actions {
+  display: flex;
+  gap: 8px;
+}
+.platoon-item .edit-platoon,
+.platoon-item .delete-platoon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: 0.2s;
+  width: 28px;
+  height: 28px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.platoon-item .edit-platoon {
+  color: #3b82f6;
+}
+.platoon-item .edit-platoon:hover {
+  background: #dbeafe;
+}
+.platoon-item .delete-platoon {
+  color: #ef4444;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+.platoon-item .delete-platoon:hover {
+  background: #fee2e2;
+}
+
+/* Кнопка редактирования при активном взводе — белая */
+.platoon-item.active .edit-platoon {
+  color: white !important;
+}
+.platoon-item.active .edit-platoon:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+.platoon-item.active .platoon-count {
+  color: white !important;
+}
+
+.platoons-main {
+  flex: 1;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.platoon-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+.platoon-title h2 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+.btn-generate-doc,
+.btn-auto-distribute,
+.btn-add-to-platoon,
+.btn-remove-from-platoon {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-auto-distribute {
+  background: #8b5cf6;
+}
+.btn-add-to-platoon {
+  background: #10b981;
+}
+.btn-remove-from-platoon {
+  background: #ef4444;
+}
+.btn-generate-doc:hover,
+.btn-auto-distribute:hover,
+.btn-add-to-platoon:hover,
+.btn-remove-from-platoon:hover {
+  filter: brightness(0.95);
+}
+
+.people-grid {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 20px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.people-list-container h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+}
+
+.people-list {
+  list-style: none;
+  margin: 0 0 24px 0;
+  padding: 0;
+  min-height: 100px;
+}
+.people-list li {
+  background: white;
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.person-name {
+  font-weight: 500;
+  flex: 2;
+}
+.person-school {
+  font-size: 0.8rem;
+  color: #64748b;
+  flex: 2;
+}
+.person-platoon {
+  font-size: 0.8rem;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: #1e293b;
+  flex: 1;
+  text-align: center;
+}
+
+.empty-message {
+  text-align: center;
+  color: #94a3b8;
+  padding: 40px;
+}
+
+/* Стили для заголовков списков и чекбокса "Выбрать всех" */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.select-all-label {
+  font-size: 0.85rem;
+  font-weight: normal;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.select-all-checkbox {
+  margin: 0;
+}
+
+/* Тёмная тема */
+body.dark-theme .platoons-sidebar,
+body.dark-theme .platoons-main {
+  background: #1e293b;
+}
+body.dark-theme .platoon-item {
+  background: #334155;
+  color: #e2e8f0;
+}
+body.dark-theme .platoon-item:hover {
+  background: #475569;
+}
+body.dark-theme .people-list li {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+body.dark-theme .people-list li .person-school {
+  color: #94a3b8;
+}
+body.dark-theme .people-grid {
+  background: #0f172a;
+}
+body.dark-theme .person-platoon {
+  background: #334155;
+  color: #cbd5e1;
+}

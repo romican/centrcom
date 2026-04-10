@@ -1,0 +1,111 @@
+/* ========== БАЗОВЫЕ СТИЛИ И ТЁМНАЯ ТЕМА ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f5f7fb;
+  color: #1e293b;
+  overflow-x: hidden;
+  transition: background 0.3s, color 0.2s;
+}
+
+/* ========== ТЁМНАЯ ТЕМА (основные элементы) ========== */
+body.dark-theme {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+body.dark-theme .main-content {
+  background: #1e293b;
+}
+
+body.dark-theme .content-header h1 {
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+body.dark-theme .theme-toggle {
+  background: #334155;
+  color: #facc15;
+}
+body.dark-theme .theme-toggle:hover {
+  background: #475569;
+}
+
+body.dark-theme .fab {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+body.dark-theme .btn.cancel {
+  background: #334155;
+  color: #e2e8f0;
+}
+body.dark-theme .btn.cancel:hover {
+  background: #475569;
+}
+
+body.dark-theme .btn.add {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+/* FAB общий */
+.fab {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.5);
+}
+
+/* Общие стили для модалок (тёмная тема) */
+body.dark-theme .modal-content {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+body.dark-theme .modal-header {
+  border-bottom-color: #334155;
+}
+body.dark-theme .close-modal {
+  color: #94a3b8;
+}
+body.dark-theme .close-modal:hover {
+  color: #f87171;
+}
+body.dark-theme .form-group label {
+  color: #cbd5e1;
+}
+body.dark-theme .form-group input,
+body.dark-theme .form-group select {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+body.dark-theme .form-group input:focus,
+body.dark-theme .form-group select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+body.dark-theme .form-actions {
+  background: #0f172a;
+}

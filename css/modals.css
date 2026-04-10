@@ -1,0 +1,272 @@
+/* ========== МОДАЛЬНЫЕ ОКНА ========== */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 32px;
+  width: 90%;
+  max-width: 700px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px 16px 28px;
+  border-bottom: 1px solid #eef2ff;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+}
+
+.modal-header h2 i {
+  color: #3b82f6;
+}
+
+.close-modal {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: color 0.2s;
+  line-height: 1;
+}
+.close-modal:hover { color: #ef4444; }
+
+/* ========== ФОРМЫ ========== */
+#addForm, #collectionForm, #invoiceForm, #employeeForm { padding: 16px 24px 8px 24px; }
+
+.form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 180px;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 0.85rem;
+}
+
+.form-group label i {
+  margin-right: 8px;
+  color: #3b82f6;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 24px 28px 24px;
+  background: #fafcff;
+  border-radius: 0 0 32px 32px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: 40px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+  font-size: 0.9rem;
+}
+.btn.cancel { background: #f1f5f9; color: #475569; }
+.btn.cancel:hover { background: #e2e8f0; }
+.btn.add {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.btn.add:hover { transform: translateY(-1px); filter: brightness(1.02); }
+
+/* ========== МОДАЛКА ПРОСМОТРА СБОРА ========== */
+#viewCollectionInfo { margin: 0 24px 16px 24px; flex-shrink: 0; }
+#peopleListContainer { flex: 1; overflow-y: auto; padding: 0 24px; }
+#peopleTable { width: 100%; border-collapse: collapse; }
+#peopleTable th, #peopleTable td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+#peopleTable th { background: #f8fafc; font-weight: 600; }
+#addPersonSection { flex-shrink: 0; padding: 16px 24px; background: inherit; border-top: 1px solid #e2e8f0; margin-top: auto; }
+#addPersonForm { display: none; margin-top: 16px; background: #f8fafc; border-radius: 20px; padding: 16px; }
+.delete-person-btn:hover { transform: scale(1.2); color: #dc2626; }
+#searchPersonInput, #searchInvoiceInput { padding: 8px 12px; border-radius: 20px; border: 1px solid #ccc; width: 180px; font-family: inherit; }
+
+body.dark-theme #viewCollectionInfo,
+body.dark-theme #viewInvoiceInfo {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+body.dark-theme #peopleTable th,
+body.dark-theme #invoiceDetailsTable th {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+}
+body.dark-theme #peopleTable td,
+body.dark-theme #invoiceDetailsTable td {
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+body.dark-theme #addPersonForm {
+  background: #0f172a;
+}
+body.dark-theme #searchPersonInput,
+body.dark-theme #searchInvoiceInput {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+
+/* ========== МОДАЛКА ВЫБОРА СБОРОВ ========== */
+#collectionsChecklist {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+}
+body.dark-theme #collectionsChecklist {
+  background: #0f172a;
+}
+#collectionsChecklist label {
+  padding: 8px;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+#collectionsChecklist label:hover {
+  background: #e2e8f0;
+}
+body.dark-theme #collectionsChecklist label:hover {
+  background: #334155;
+}
+
+/* ========== МОДАЛКА ПРОСМОТРА СЧЁТА ========== */
+#viewInvoiceInfo { margin: 0 24px 16px 24px; flex-shrink: 0; }
+#invoiceDetailsContainer { flex: 1; overflow-y: auto; padding: 0 24px; }
+/* ========== МОДАЛКА РЕДАКТИРОВАНИЯ ========== */
+#editModal .modal-content {
+  max-width: 600px;
+}
+#editModal .form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+#editModal .form-group {
+  flex: 1;
+  min-width: 180px;
+  margin-bottom: 20px;
+}
+#editModal .form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 0.85rem;
+}
+#editModal .form-group label i {
+  margin-right: 8px;
+  color: #3b82f6;
+}
+#editModal .form-group input,
+#editModal .form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  background: white;
+}
+#editModal .form-group input:focus,
+#editModal .form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+#editModal .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 24px 28px 24px;
+  background: #fafcff;
+  border-radius: 0 0 32px 32px;
+  margin-top: 8px;
+}
+body.dark-theme #editModal .form-group label {
+  color: #cbd5e1;
+}
+body.dark-theme #editModal .form-group input,
+body.dark-theme #editModal .form-group select {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+body.dark-theme #editModal .form-actions {
+  background: #0f172a;
+}

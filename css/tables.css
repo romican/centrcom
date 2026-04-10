@@ -1,0 +1,370 @@
+/* ========== ОСНОВНАЯ ОБЛАСТЬ ========== */
+.main-content {
+  flex: 1;
+  padding: 24px 32px;
+  transition: all 0.3s;
+  position: relative;
+  background: #f1f5f9;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.content-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.theme-toggle {
+  background: #e2e8f0;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 40px;
+  cursor: pointer;
+  font-size: 1.3rem;
+  color: #1e293b;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle:hover {
+  background: #cbd5e1;
+  transform: scale(1.02);
+}
+
+/* ========== ОБЩИЕ СТИЛИ ТАБЛИЦ ========== */
+.table-container,
+.collections-table-container,
+.employees-table-container,
+.invoices-table-container {
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  overflow-x: auto;
+}
+
+.modern-table,
+.collections-table,
+.employees-table,
+.invoices-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 700px;
+}
+
+.modern-table th,
+.collections-table th,
+.employees-table th,
+.invoices-table th {
+  background: #f8fafc;
+  padding: 16px 20px;
+  text-align: left;
+  font-weight: 600;
+  color: #1e293b;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.modern-table td,
+.collections-table td,
+.employees-table td,
+.invoices-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.modern-table tr:hover td,
+.collections-table tr:hover td,
+.employees-table tr:hover td,
+.invoices-table tr:hover td,
+#schoolsTable .school-row:hover {
+  background: #e0f2fe;  /* очень светлый голубой */
+}
+
+/* Кнопка удаления */
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 40px;
+  transition: 0.2s;
+}
+.delete-btn:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
+}
+
+.loading-cell {
+  text-align: center;
+  padding: 40px !important;
+  color: #94a3b8;
+}
+
+/* Кликабельные строки */
+.collection-row,
+.invoice-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.collection-row:hover,
+.invoice-row:hover {
+  background: #fefce8;
+}
+
+/* Тёмная тема для таблиц */
+body.dark-theme .table-container,
+body.dark-theme .collections-table-container,
+body.dark-theme .employees-table-container,
+body.dark-theme .invoices-table-container {
+  background: #1e293b;
+}
+body.dark-theme .modern-table th,
+body.dark-theme .collections-table th,
+body.dark-theme .employees-table th,
+body.dark-theme .invoices-table th {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+}
+body.dark-theme .modern-table td,
+body.dark-theme .collections-table td,
+body.dark-theme .employees-table td,
+body.dark-theme .invoices-table td {
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+body.dark-theme .modern-table tr:hover td,
+body.dark-theme .collections-table tr:hover td,
+body.dark-theme .employees-table tr:hover td,
+body.dark-theme .invoices-table tr:hover td,
+body.dark-theme #schoolsTable .school-row:hover {
+  background: #1e3a5f;  /* тёмно-синий с голубым отливом */
+}
+body.dark-theme .collection-row:hover,
+body.dark-theme .invoice-row:hover {
+  background: #334155;
+}
+body.dark-theme .delete-btn:hover {
+  background: #7f1a1a;
+}
+/* Кнопки действий в таблицах (редактирование и удаление) */
+.edit-btn, .delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 40px;
+  transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.edit-btn {
+  color: #3b82f6; /* синий */
+}
+.edit-btn:hover {
+  background: #eff6ff;
+  transform: scale(1.05);
+}
+
+.delete-btn {
+  color: #ef4444; /* красный */
+}
+.delete-btn:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
+}
+
+/* Тёмная тема */
+body.dark-theme .edit-btn {
+  color: #60a5fa;
+}
+body.dark-theme .edit-btn:hover {
+  background: #1e40af;
+}
+body.dark-theme .delete-btn:hover {
+  background: #7f1a1a;
+}
+/* Стили для таблицы школ в модалке сборов */
+#schoolsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+#schoolsTable th, #schoolsTable td {
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+#schoolsTable th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+.school-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.school-row:hover {
+  background: #fefce8;
+}
+.school-actions {
+  text-align: center;
+  width: 80px;
+}
+.delete-school-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 6px;
+  border-radius: 40px;
+  transition: all 0.2s;
+}
+.delete-school-btn:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
+}
+/* Тёмная тема */
+body.dark-theme #schoolsTable th {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+}
+body.dark-theme #schoolsTable td {
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+body.dark-theme .school-row:hover {
+  background: #334155;
+}
+body.dark-theme .delete-school-btn:hover {
+  background: #7f1a1a;
+}
+/* Уменьшаем отступы в модальном окне школ */
+#schoolsModal .modal-content {
+  max-width: 800px;
+}
+
+#schoolsModal .modal-header {
+  padding: 16px 20px 12px 20px; /* было 24px 28px... */
+}
+
+#schoolsModal #schoolsInfo {
+  margin: 0 20px 12px 20px; /* было 0 24px 16px 24px */
+  padding: 8px 12px; /* добавим внутренний отступ для информации */
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+#schoolsModal #schoolsListContainer {
+  padding: 0 20px; /* было 0 24px */
+}
+
+#schoolsModal .schools-table-container {
+  margin: 0;
+}
+
+#schoolsModal #schoolsTable {
+  margin-bottom: 8px;
+}
+
+#schoolsModal #schoolsTable th,
+#schoolsModal #schoolsTable td {
+  padding: 2px 2px; /* было 12px 8px */
+  font-size: 1rem; /* чуть меньше шрифт */
+}
+
+#schoolsModal .add-school-section {
+  padding: 12px 20px 16px 20px; /* было 16px 24px */
+}
+/* Стили для статуса взвода в таблице участников школы */
+.platoon-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.platoon-badge.assigned {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.platoon-badge.unassigned {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+body.dark-theme .platoon-badge.assigned {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+body.dark-theme .platoon-badge.unassigned {
+  background: #7f1a1a;
+  color: #fca5a5;
+}
+/* Стили для таблицы участников школы */
+#peopleTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+#peopleTable th,
+#peopleTable td {
+  padding: 8px 6px;
+  vertical-align: middle;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+#peopleTable td:first-child {
+  text-align: center;
+}
+#peopleTable td:last-child {
+  text-align: center;
+}
+/* Статус взвода */
+.platoon-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.platoon-badge.assigned {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.platoon-badge.unassigned {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+body.dark-theme .platoon-badge.assigned {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+body.dark-theme .platoon-badge.unassigned {
+  background: #7f1a1a;
+  color: #fca5a5;
+}
+/* Адаптация для маленьких экранов – разрешаем прокрутку */
+@media (max-width: 768px) {
+  #peopleTable {
+    min-width: 600px;
+  }
+}

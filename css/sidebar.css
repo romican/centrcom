@@ -1,0 +1,203 @@
+/* ========== SIDEBAR ========== */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 280px;
+  background: #dadada;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar.collapsed .logo,
+.sidebar.collapsed .nav-item span {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .nav-item i {
+  margin: 0;
+  font-size: 1.5rem;
+  width: auto;
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #3b82f6;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+  background: #eff6ff;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #1e293b;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item i {
+  width: 24px;
+  font-size: 1.2rem;
+}
+
+.nav-item:hover {
+  background: #e2e8f0;
+  color: #1e40af;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+}
+
+/* Тёмная тема для сайдбара */
+body.dark-theme .sidebar {
+  background: #1e293b;
+  border-right-color: #334155;
+}
+body.dark-theme .sidebar-header {
+  border-bottom-color: #334155;
+}
+body.dark-theme .toggle-btn {
+  color: #60a5fa;
+}
+body.dark-theme .toggle-btn:hover {
+  background: #334155;
+}
+body.dark-theme .logo {
+  background: linear-gradient(135deg, #ffffff, #60a5fa);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+body.dark-theme .nav-item {
+  color: #cbd5e1;
+}
+body.dark-theme .nav-item:hover {
+  background: #334155;
+  color: white;
+}
+body.dark-theme .nav-item.active {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+.nav-group {
+  margin-bottom: 4px;
+}
+.sub-item {
+  padding-left: 48px !important;
+  font-size: 0.9rem;
+}
+/* Подменю (Взвода) */
+.submenu {
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  max-height: 0;
+}
+.submenu.show {
+  max-height: 100px; /* достаточно для одного пункта */
+}
+.sub-item {
+  padding-left: 48px !important;
+  font-size: 0.9rem;
+}
+/* Центрирование иконки в свёрнутом меню для подпункта */
+.sidebar.collapsed .sub-item i {
+  margin: 0 auto;
+  font-size: 1.5rem;
+}
+.sidebar.collapsed .sub-item span {
+  display: none;
+}
+.sidebar.collapsed .sub-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+/* Стили для активного раздела Сборы — подменю видно */
+.nav-group.active .submenu {
+  max-height: 100px;
+}
+/* Принудительное центрирование иконки подпункта в свёрнутом меню */
+.sidebar.collapsed .sub-item {
+  justify-content: center !important;
+  padding: 12px 0 !important;
+}
+.sidebar.collapsed .sub-item i {
+  margin: 0 auto !important;
+  font-size: 1.5rem !important;
+  width: auto !important;
+}
+.sidebar.collapsed .sub-item span {
+  display: none !important;
+}
+/* Подсветка родительского пункта при активном подпункте */
+.nav-group.active > .nav-item {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+}
+.nav-group.active > .nav-item i,
+.nav-group.active > .nav-item span {
+  color: white;
+}
+.nav-item.sub-item.active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+}
+.nav-item.sub-item.active i,
+.nav-item.sub-item.active span {
+  color: white;
+}
