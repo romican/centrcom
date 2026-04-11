@@ -1,4 +1,4 @@
-// ========== СБОРЫ (новая логика: школы) ==========
+// ========== СБОРЫ ==========
 const colDateStart = document.getElementById('colDateStart');
 const colDateEnd = document.getElementById('colDateEnd');
 const militaryUnit = document.getElementById('militaryUnit');
@@ -11,8 +11,9 @@ let currentCollectionId = null;
 let currentSchoolId = null;
 let currentSchoolName = null;
 let allSchools = [];
+let currentSort = 'name'; // 'name' или 'platoon'
 
-// Модальное окно списка школ
+// Модальное окно списка школ (без изменений)
 const schoolsModal = document.createElement('div');
 schoolsModal.id = 'schoolsModal';
 schoolsModal.className = 'modal';
@@ -47,7 +48,7 @@ const schoolsTableBody = document.getElementById('schoolsTableBody');
 const addSchoolBtn = document.getElementById('addSchoolBtn');
 const searchSchoolInput = document.getElementById('searchSchoolInput');
 
-// Модальное окно добавления школы
+// Модальное окно добавления школы (без изменений)
 const addSchoolModal = document.createElement('div');
 addSchoolModal.id = 'addSchoolModal';
 addSchoolModal.className = 'modal';
@@ -83,7 +84,7 @@ const addSchoolForm = document.getElementById('addSchoolForm');
 const schoolNameInput = document.getElementById('schoolName');
 const schoolPeopleListTextarea = document.getElementById('schoolPeopleList');
 
-// Модальное окно просмотра участников школы (с колонкой Взвод) – расширенное
+// Модальное окно просмотра участников школы (с кнопками сортировки и редактирования)
 const peopleModal = document.createElement('div');
 peopleModal.id = 'peopleModal';
 peopleModal.className = 'modal';
@@ -93,6 +94,10 @@ peopleModal.innerHTML = `
       <h2><i class="fas fa-users"></i> Участники</h2>
       <div style="display: flex; align-items: center; gap: 12px;">
         <input type="text" id="searchPersonInput" placeholder="Поиск по фамилии..." style="padding: 8px 12px; border-radius: 20px; border: 1px solid #ccc; width: 180px;">
+        <div style="display: flex; gap: 8px;">
+          <button id="sortByNameBtn" class="btn small" style="background: #3b82f6; color: white; border: none; border-radius: 20px; padding: 6px 12px;">По алфавиту</button>
+          <button id="sortByPlatoonBtn" class="btn small" style="background: #8b5cf6; color: white; border: none; border-radius: 20px; padding: 6px 12px;">По взводам</button>
+        </div>
         <button class="close-modal" id="closePeopleModalBtn">&times;</button>
       </div>
     </div>
@@ -105,7 +110,7 @@ peopleModal.innerHTML = `
             <th style="min-width: 180px;">ФИО</th>
             <th style="width: 140px;">Взвод</th>
             <th style="min-width: 180px;">Организация</th>
-            <th style="width: 50px;">Действия</th>
+            <th style="width: 90px;">Действия</th>
           </tr>
         </thead>
         <tbody id="peopleTableBody"></tbody>
@@ -160,7 +165,7 @@ async function loadCollections() {
 
 function renderCollections(collections) {
   if (!collections.length) {
-    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tr></tbody></table></div>`;
+    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tbody>}</div>`;
     return;
   }
   let html = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody>`;
@@ -178,7 +183,7 @@ function renderCollections(collections) {
       </td>
     </tr>`;
   });
-  html += `</tbody></table></div>`;
+  html += `</tbody></tr></div>`;
   window.contentBody.innerHTML = html;
   
   document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -287,7 +292,7 @@ async function loadSchools(collectionId) {
     allSchools = await resp.json();
     filterSchools();
   } catch (err) {
-    schoolsTableBody.innerHTML = '<td><td colspan="3">Ошибка загрузки школ</td></tr>';
+    schoolsTableBody.innerHTML = '<tr><td colspan="3">Ошибка загрузки школ</td></tr>';
   }
 }
 
@@ -314,7 +319,6 @@ function renderSchoolsTable(schools) {
     </tr>
   `).join('');
   
-  // Обработчик клика по строке (открыть список участников)
   document.querySelectorAll('.school-row').forEach(row => {
     row.addEventListener('click', (e) => {
       if (e.target.closest('.edit-school-btn') || e.target.closest('.delete-school-btn')) return;
@@ -323,7 +327,6 @@ function renderSchoolsTable(schools) {
       openPeopleModal(schoolId, schoolName);
     });
   });
-  // Удаление школы
   document.querySelectorAll('.delete-school-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -337,7 +340,6 @@ function renderSchoolsTable(schools) {
       }
     });
   });
-  // Редактирование школы
   document.querySelectorAll('.edit-school-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -352,7 +354,7 @@ function renderSchoolsTable(schools) {
             body: JSON.stringify({ edu_org: newName.trim() })
           });
           await loadSchools(currentCollectionId);
-          loadCollections(); // обновить количество участников в основной таблице
+          loadCollections();
         } catch (err) {
           alert('Ошибка редактирования: ' + err.message);
         }
@@ -385,22 +387,36 @@ addSchoolForm.addEventListener('submit', async (e) => {
     });
     if (!response.ok) throw new Error('Ошибка сервера');
     const data = await response.json();
-    if (data.schools) {
-      allSchools = data.schools;
-      filterSchools();
-    } else {
-      await loadSchools(currentCollectionId);
-    }
-    loadCollections();
+    
+    // Закрыть модалку добавления
     addSchoolModal.style.display = 'none';
     schoolNameInput.value = '';
     schoolPeopleListTextarea.value = '';
+    
+    // Принудительно перезагрузить список школ через 0.5 секунды (для надёжности)
+    await loadSchools(currentCollectionId);
+    filterSchools();
+    
+    // Дополнительная проверка: если people_count не совпадает с количеством строк в списке
+    const expectedCount = peopleList.split(/\r?\n/).filter(l => l.trim().length > 0).length;
+    const actualCount = allSchools.find(s => s.edu_org === edu_org)?.people_count || 0;
+    if (actualCount !== expectedCount) {
+      console.warn(`Несоответствие: ожидалось ${expectedCount}, получено ${actualCount}. Возможно, ошибка в данных.`);
+      // Попробуем перезагрузить ещё раз через 1 секунду
+      setTimeout(async () => {
+        await loadSchools(currentCollectionId);
+        filterSchools();
+      }, 1000);
+    }
+    
+    // Обновить основную таблицу сборов (количество участников)
+    loadCollections();
   } catch (err) {
     alert('Ошибка добавления школы: ' + err.message);
   }
 });
 
-// ========== МОДАЛКА ПРОСМОТРА УЧАСТНИКОВ ШКОЛЫ ==========
+// ========== МОДАЛКА ПРОСМОТРА УЧАСТНИКОВ ШКОЛЫ (с сортировкой и редактированием) ==========
 async function openPeopleModal(schoolId, schoolName) {
   currentSchoolId = schoolId;
   currentSchoolName = schoolName;
@@ -410,7 +426,18 @@ async function openPeopleModal(schoolId, schoolName) {
   addPersonFormDiv.style.display = 'none';
   newPersonName.value = '';
   searchPersonInput.value = '';
+  currentSort = 'name';
   filterPeople();
+  
+  // Обработчики кнопок сортировки
+  document.getElementById('sortByNameBtn').onclick = () => {
+    currentSort = 'name';
+    filterPeople();
+  };
+  document.getElementById('sortByPlatoonBtn').onclick = () => {
+    currentSort = 'platoon';
+    filterPeople();
+  };
 }
 
 async function loadPeopleForSchool(schoolId) {
@@ -418,7 +445,6 @@ async function loadPeopleForSchool(schoolId) {
     const resp = await fetch(`/api/schools/${schoolId}/people`);
     if (!resp.ok) throw new Error();
     allPeople = await resp.json();
-    filterPeople();
   } catch (err) { console.error(err); }
 }
 
@@ -426,6 +452,21 @@ function filterPeople() {
   const searchTerm = searchPersonInput.value.trim().toLowerCase();
   let filtered = [...allPeople];
   if (searchTerm) filtered = filtered.filter(p => p.full_name.toLowerCase().includes(searchTerm));
+  
+  // Сортировка
+  if (currentSort === 'name') {
+    filtered.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
+  } else if (currentSort === 'platoon') {
+    filtered.sort((a, b) => {
+      const getOrder = (p) => {
+        if (!p.platoon_name) return 0; // Не распределён – первыми
+        const match = p.platoon_name.match(/\d+/);
+        if (match) return parseInt(match[0]);
+        return 999;
+      };
+      return getOrder(a) - getOrder(b);
+    });
+  }
   renderPeopleTable(filtered);
 }
 
@@ -440,15 +481,20 @@ function renderPeopleTable(people) {
       ? `<span class="platoon-badge assigned">${window.escapeHtml(p.platoon_name)}</span>`
       : `<span class="platoon-badge unassigned">Не распределён</span>`;
     return `
-      <tr>
+      <tr data-person-id="${p.id}">
         <td style="text-align: center;">${idx+1}</td>
         <td>${window.escapeHtml(p.full_name)}</td>
         <td>${platoonStatus}</td>
         <td>${window.escapeHtml(p.organization)}</td>
-        <td><button class="delete-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-times-circle"></i></button></td>
+        <td style="text-align: center;">
+          <button class="edit-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-edit"></i></button>
+          <button class="delete-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-times-circle"></i></button>
+        </td>
       </tr>
     `;
   }).join('');
+  
+  // Удаление участника
   document.querySelectorAll('.delete-person-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -460,6 +506,30 @@ function renderPeopleTable(people) {
       }
     });
   });
+  
+// Редактирование участника
+document.querySelectorAll('.edit-person-btn').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const personId = btn.getAttribute('data-person-id');
+    const currentName = btn.closest('tr').querySelector('td:nth-child(2)').innerText;
+    const newName = prompt('Введите новое ФИО:', currentName);
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+      try {
+        await fetch(`/api/collection-people/${personId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: newName.trim() })
+        });
+        await loadPeopleForSchool(currentSchoolId);
+        filterPeople();   // <-- обновляет таблицу сразу
+        loadCollections(); // обновляет количество в таблице сборов
+      } catch (err) {
+        alert('Ошибка редактирования: ' + err.message);
+      }
+    }
+  });
+});
 }
 
 addPersonBtn.addEventListener('click', () => {

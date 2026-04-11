@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } = require('docx');
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, VerticalAlign, BorderStyle, PageOrientation } = require('docx');
 
 const db = new sqlite3.Database(path.join(__dirname, '..', 'buses.db'));
 
-// Вспомогательная функция форматирования даты
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
@@ -34,82 +33,183 @@ router.post('/schools/by-collections', (req, res) => {
   });
 });
 
-// ========== ГЕНЕРАЦИЯ СВОДНОЙ ВЕДОМОСТИ ПО КОНКРЕТНОЙ ШКОЛЕ ==========
+// ========== ГЕНЕРАЦИЯ СВОДНОЙ ВЕДОМОСТИ (АЛЬБОМНАЯ ОРИЕНТАЦИЯ, ШРИФТ 10PT) ==========
 router.post('/generate-school-doc', async (req, res) => {
-  const { schoolId, docType } = req.body;
+  const { schoolId } = req.body;
   if (!schoolId) {
     return res.status(400).json({ error: 'Не указана школа' });
   }
   try {
     const schoolInfo = await new Promise((resolve, reject) => {
-      db.get(`SELECT edu_org FROM collection_schools WHERE id = ?`, [schoolId], (err, row) => {
+      db.get(`
+        SELECT s.edu_org, c.date_start, c.date_end, c.military_unit
+        FROM collection_schools s
+        JOIN collections c ON s.collection_id = c.id
+        WHERE s.id = ?
+      `, [schoolId], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
     });
-    if (!schoolInfo) return res.status(404).json({ error: 'Школа не найдена' });
+    if (!schoolInfo) {
+      return res.status(404).json({ error: 'Школа не найдена' });
+    }
 
     const people = await new Promise((resolve, reject) => {
-      db.all(`SELECT full_name FROM collection_people WHERE school_id = ? ORDER BY full_name COLLATE NOCASE`, [schoolId], (err, rows) => {
+      db.all(`
+        SELECT full_name FROM collection_people
+        WHERE school_id = ?
+        ORDER BY full_name COLLATE NOCASE
+      `, [schoolId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-    if (!people.length) return res.status(404).json({ error: 'В этой школе нет участников' });
+    if (!people.length) {
+      return res.status(404).json({ error: 'В школе нет участников' });
+    }
 
-    let periodText = '';
-    await new Promise((resolve) => {
-      db.get(`
-        SELECT c.date_start FROM collections c
-        JOIN collection_schools s ON s.collection_id = c.id
-        WHERE s.id = ?
-      `, [schoolId], (err, row) => {
-        if (row && row.date_start) periodText = formatDate(row.date_start);
-        resolve();
+    const period = `${formatDate(schoolInfo.date_start)} по ${formatDate(schoolInfo.date_end)}г.`;
+
+    // Функция создания ячейки с возможностью задать ширину и размер шрифта
+    function makeCell(text, bold = false, centered = true, colspan = 1, width = null, fontSize = 10) {
+      const paragraph = new Paragraph({
+        children: [new TextRun({ text: text, bold: bold, size: fontSize * 2, font: "Times New Roman" })],
+        alignment: centered ? AlignmentType.CENTER : AlignmentType.LEFT
       });
-    });
+      const cell = new TableCell({
+        children: [paragraph],
+        columnSpan: colspan,
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 60, bottom: 60, left: 60, right: 60 },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1 },
+          bottom: { style: BorderStyle.SINGLE, size: 1 },
+          left: { style: BorderStyle.SINGLE, size: 1 },
+          right: { style: BorderStyle.SINGLE, size: 1 }
+        }
+      });
+      if (width !== null) {
+        cell.width = { size: width, type: WidthType.PERCENTAGE };
+      }
+      return cell;
+    }
 
-    const headers = [
-      '№ п/п', 'Фамилия, имя, отчество обучающегося',
-      'Оценка по тактической подготовке', 'Оценка по огневой подготовке',
-      'Оценка по физической подготовке', 'Оценка по строевой подготовке',
-      'Оценка по медицинской подготовке', 'Оценка по РХБЗ', 'Оценка за сборы',
-      'Выбор места для стрельбы', 'Передвижение на поле боя перебежками',
-      'Передвижение на поле боя переползанием', 'Итоговая (тактика)',
-      'Неполная разборка – сборка автомата Калашникова',
-      'Выполнение начального упражнения стрельбы',
-      'Первое упражнение по метанию ручной гранаты', 'Итоговая (огневая)',
-      'Кросс 1 км (3 км)', 'Бег (100 м)', 'Подтягивание на перекладине',
-      'Прыжки в длину с места', 'Итоговая (физо)',
-      'Строевая стойка', 'Повороты на месте и в движении',
-      'Строевой шаг, воинское приветствие', 'Итоговая (строевая)',
-      'Остановка кровотечения', 'Наложение повязки на раны', 'Итоговая (медицина)',
-      'Действия солдата по сигналам оповещения',
-      'Выполнение нормативов одевания СИЗ',
-      'Преодоление заражённого участка местности', 'Итоговая (РХБЗ)'
+    // Групповые заголовки (первая строка)
+    const groupHeaders = [
+      { text: '№ п/п', colspan: 1, width: 3 },
+      { text: 'Фамилия, имя,\nотчество\nобучающегося', colspan: 1, width: 15 },
+      { text: 'Оценка по тактической подготовке', colspan: 4, width: 14 },
+      { text: 'Оценка по огневой подготовке', colspan: 4, width: 14 },
+      { text: 'Оценка по физической подготовке', colspan: 5, width: 17.5 },
+      { text: 'Оценка по строевой подготовке', colspan: 4, width: 14 },
+      { text: 'Оценка по медицинской подготовке', colspan: 3, width: 10.5 },
+      { text: 'Оценка по РХБЗ', colspan: 4, width: 14 },
+      { text: 'Оценка за сборы', colspan: 1, width: 3 }
     ];
 
-    const headerRow = new TableRow({
-      children: headers.map(h => new TableCell({ children: [new Paragraph({ text: h, bold: true })] }))
+    const subHeaders = [
+      '', '',
+      'выбор места для стрельбы',
+      'передвижение на поле боя перебежками',
+      'передвижение на поле боя переползанием',
+      'итоговая',
+      'неполная разборка – сборка автомата Калашникова',
+      'выполнение начального упражнения стрельбы',
+      'первое упражнение по метанию ручной гранаты',
+      'итоговая',
+      'кросс 1 км (3 км)',
+      'бег (100 м)',
+      'подтягивание на перекладине',
+      'прыжки в длину с места',
+      'итоговая',
+      'строевая стойка',
+      'повороты на месте и в движении',
+      'строевой шаг, воинское приветствие',
+      'итоговая',
+      'остановка кровотечения',
+      'наложение повязки на раны',
+      'итоговая',
+      'действия солдата по сигналам оповещения',
+      'выполнение нормативов одевания СИЗ',
+      'преодоление заражённого участка местности',
+      'итоговая',
+      ''
+    ];
+
+    const subWidths = [3, 15];
+    for (let i = 0; i < 26; i++) subWidths.push(100 / 28);
+
+    const headerRow1 = new TableRow({
+      children: groupHeaders.map(gh => makeCell(gh.text, true, true, gh.colspan, gh.width, 10))
     });
 
-    const peopleRows = people.map((person, idx) => {
-      const cells = headers.map((_, colIdx) => {
-        if (colIdx === 0) return new TableCell({ children: [new Paragraph({ text: (idx + 1).toString() })] });
-        if (colIdx === 1) return new TableCell({ children: [new Paragraph({ text: person.full_name })] });
-        return new TableCell({ children: [new Paragraph({ text: '' })] });
-      });
-      return new TableRow({ children: cells });
+    const headerRow2 = new TableRow({
+      children: subHeaders.map((sh, idx) => makeCell(sh, false, true, 1, subWidths[idx], 10))
     });
+
+    const dataRows = [];
+    for (let i = 0; i < people.length; i++) {
+      const cells = [
+        makeCell((i + 1).toString(), false, true, 1, 3, 10),
+        makeCell(people[i].full_name, false, false, 1, 15, 10)
+      ];
+      for (let j = 0; j < 26; j++) {
+        cells.push(makeCell('', false, true, 1, subWidths[j + 2], 10));
+      }
+      dataRows.push(new TableRow({ children: cells }));
+    }
 
     const doc = new Document({
       sections: [{
-        properties: { page: { margins: { top: 2000, right: 1400, bottom: 2000, left: 2800 } } },
+        properties: {
+          page: {
+            size: {
+              orientation: PageOrientation.LANDSCAPE,
+            },
+            margins: {
+              top: 1000,
+              right: 1000,
+              bottom: 1000,
+              left: 1000,
+            },
+          },
+        },
         children: [
-          new Paragraph({ text: 'Сводная оценочная ведомость учащихся', alignment: AlignmentType.CENTER, heading: HeadingLevel.TITLE, spacing: { after: 200 } }),
-          new Paragraph({ text: schoolInfo.edu_org, alignment: AlignmentType.CENTER, spacing: { after: 100 } }),
-          new Paragraph({ text: `за учебные сборы в период ${periodText}`, alignment: AlignmentType.CENTER, spacing: { after: 400 } }),
-          new Table({ rows: [headerRow, ...peopleRows], width: { size: 100, type: WidthType.PERCENTAGE }, margins: { top: 100, bottom: 100, left: 100, right: 100 } })
+          new Paragraph({
+            text: 'Сводная оценочная ведомость учащихся',
+            alignment: AlignmentType.CENTER,
+            heading: HeadingLevel.TITLE,
+            spacing: { after: 200 },
+          }),
+          new Paragraph({
+            text: schoolInfo.edu_org,
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 },
+          }),
+          new Paragraph({
+            text: `за учебные сборы в период с ${period}`,
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 },
+          }),
+          new Table({
+            rows: [headerRow1, headerRow2, ...dataRows],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          }),
+          new Paragraph({ text: '', spacing: { before: 400 } }),
+          new Paragraph({
+            children: [
+              new TextRun('Представитель учебной организации ___________________________ В.Н.Литвиненко'),
+              new TextRun({ text: '\n\n', break: 1 }),
+              new TextRun('Представитель воинской части (соединения) ___________________________'),
+              new TextRun({ text: '\n\n', break: 1 }),
+              new TextRun('м.п.'),
+              new TextRun({ text: '\n\n', break: 1 }),
+              new TextRun('Генеральный директор ООО «Центр +» ___________________________ К. К. Ляхов'),
+              new TextRun({ text: '\n', break: 1 }),
+              new TextRun('м.п.')
+            ]
+          })
         ]
       }]
     });
@@ -124,7 +224,7 @@ router.post('/generate-school-doc', async (req, res) => {
   }
 });
 
-// ========== СТАРЫЙ ГЕНЕРАТОР ДЛЯ ФИЗО (100М) ==========
+// ========== ГЕНЕРАТОР ДЛЯ ФИЗО (100М) ==========
 router.post('/generate-doc', async (req, res) => {
   const { collectionIds, docType } = req.body;
   if (!collectionIds || !collectionIds.length) {
@@ -145,8 +245,9 @@ router.post('/generate-doc', async (req, res) => {
         else resolve(rows);
       });
     });
-    if (!people.length) return res.status(404).json({ error: 'В выбранных сборах нет участников' });
-
+    if (!people.length) {
+      return res.status(404).json({ error: 'В выбранных сборах нет участников' });
+    }
     const maxRows = 28;
     const displayedPeople = people.slice(0, maxRows);
     const totalPeople = people.length;

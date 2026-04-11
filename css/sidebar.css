@@ -201,3 +201,10 @@ body.dark-theme .nav-item.active {
 .nav-item.sub-item.active span {
   color: white;
 }
+/* Исправление переноса подпунктов */
+.sub-item {
+  white-space: nowrap;
+}
+.sub-item span {
+  white-space: nowrap;
+}

@@ -3,7 +3,7 @@ let platoon_currentCollectionId = null;
 let platoon_currentPlatoonId = null;
 let platoon_platoons = [];
 let platoon_allParticipants = [];
-let autoDistributeModal = null; // глобальная ссылка на модалку
+let autoDistributeModal = null;
 
 // Создаём модальное окно один раз при загрузке страницы
 function createAutoDistributeModal() {
@@ -36,7 +36,6 @@ function createAutoDistributeModal() {
   document.body.appendChild(modal);
   autoDistributeModal = modal;
 
-  // Обработчики закрытия
   const closeBtn = document.getElementById('closeAutoDistributeModalBtn');
   const cancelBtn = document.getElementById('cancelAutoDistributeBtn');
   const closeModal = () => { if (autoDistributeModal) autoDistributeModal.style.display = 'none'; };
@@ -70,7 +69,6 @@ function renderPlatoonsSection() {
           <button class="btn-auto-distribute" id="autoDistributeBtn"><i class="fas fa-magic"></i> Распределить автоматически</button>
           <button class="btn-add-to-platoon" id="addToPlatoonBtn" style="display:none;"><i class="fas fa-user-plus"></i> Добавить в взвод (<span id="selectedCountAdd">0</span>)</button>
           <button class="btn-remove-from-platoon" id="removeFromPlatoonBtn" style="display:none;"><i class="fas fa-user-minus"></i> Удалить из взвода (<span id="selectedCountRemove">0</span>)</button>
-          <button class="btn-generate-doc" id="generatePlatoonDocBtn"><i class="fas fa-file-alt"></i> Сформировать документ</button>
         </div>
       </div>
       <div class="people-grid" id="peopleGrid">
@@ -101,99 +99,103 @@ function renderPlatoonsSection() {
     .catch(err => console.error(err));
 
   // Добавить взвод
-  document.getElementById('addPlatoonBtn').addEventListener('click', () => {
-    if (!platoon_currentCollectionId) {
-      alert('Сначала выберите сбор');
-      return;
-    }
-    const nextNumber = platoon_platoons.length + 1;
-    const name = `ВЗВОД ${nextNumber}`;
-    fetch(`/api/collections/${platoon_currentCollectionId}/platoons`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    })
-      .then(() => platoon_loadData())
-      .catch(err => alert('Ошибка: ' + err.message));
-  });
+  const addBtn = document.getElementById('addPlatoonBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      if (!platoon_currentCollectionId) {
+        alert('Сначала выберите сбор');
+        return;
+      }
+      const nextNumber = platoon_platoons.length + 1;
+      const name = `ВЗВОД ${nextNumber}`;
+      fetch(`/api/collections/${platoon_currentCollectionId}/platoons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      })
+        .then(() => platoon_loadData())
+        .catch(err => alert('Ошибка: ' + err.message));
+    });
+  }
 
   // Автоматическое распределение
-  document.getElementById('autoDistributeBtn').addEventListener('click', async () => {
-    if (!platoon_currentCollectionId) {
-      alert('Сначала выберите сбор');
-      return;
-    }
-    if (!autoDistributeModal) {
-      alert('Ошибка: модальное окно не создано');
-      return;
-    }
-    autoDistributeModal.style.display = 'flex';
-    // Убираем старый обработчик, чтобы не дублировать
-    const confirmBtn = document.getElementById('confirmAutoDistributeBtn');
-    if (confirmBtn) {
-      confirmBtn.onclick = async () => {
-        const maxPerPlatoon = parseInt(document.getElementById('maxPerPlatoon').value) || 31;
-        let targetPlatoonsCount = parseInt(document.getElementById('targetPlatoonsCount').value);
-        if (isNaN(targetPlatoonsCount)) targetPlatoonsCount = null;
-        if (maxPerPlatoon < 1) {
-          alert('Максимум человек во взводе должен быть не менее 1');
-          return;
-        }
-        autoDistributeModal.style.display = 'none';
-        try {
-          const response = await fetch(`/api/collections/${platoon_currentCollectionId}/auto-distribute`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ maxPerPlatoon, targetPlatoonsCount })
-          });
-          if (!response.ok) throw new Error('Ошибка сервера');
-          const data = await response.json();
-          alert(data.message);
-          await platoon_loadData();
-        } catch (err) {
-          alert('Ошибка: ' + err.message);
-        }
-      };
-    }
-  });
+  const autoBtn = document.getElementById('autoDistributeBtn');
+  if (autoBtn) {
+    autoBtn.addEventListener('click', async () => {
+      if (!platoon_currentCollectionId) {
+        alert('Сначала выберите сбор');
+        return;
+      }
+      if (!autoDistributeModal) {
+        alert('Ошибка: модальное окно не создано');
+        return;
+      }
+      autoDistributeModal.style.display = 'flex';
+      const confirmBtn = document.getElementById('confirmAutoDistributeBtn');
+      if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+          const maxPerPlatoon = parseInt(document.getElementById('maxPerPlatoon').value) || 31;
+          let targetPlatoonsCount = parseInt(document.getElementById('targetPlatoonsCount').value);
+          if (isNaN(targetPlatoonsCount)) targetPlatoonsCount = null;
+          if (maxPerPlatoon < 1) {
+            alert('Максимум человек во взводе должен быть не менее 1');
+            return;
+          }
+          autoDistributeModal.style.display = 'none';
+          try {
+            const response = await fetch(`/api/collections/${platoon_currentCollectionId}/auto-distribute`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ maxPerPlatoon, targetPlatoonsCount })
+            });
+            if (!response.ok) throw new Error('Ошибка сервера');
+            const data = await response.json();
+            alert(data.message);
+            await platoon_loadData();
+          } catch (err) {
+            alert('Ошибка: ' + err.message);
+          }
+        };
+      }
+    });
+  }
 
-  // Сформировать документ по взводу
-  document.getElementById('generatePlatoonDocBtn').addEventListener('click', () => {
-    if (platoon_currentPlatoonId) platoon_generateDocument(platoon_currentPlatoonId);
-  });
-
-  // Добавить выбранных в взвод
-  document.getElementById('addToPlatoonBtn').addEventListener('click', async () => {
-    const selectedIds = platoon_getSelectedIds('.person-checkbox:checked', 'unassigned-list');
-    if (selectedIds.length === 0) return;
-    if (!platoon_currentPlatoonId) return alert('Выберите взвод');
-    try {
-      await fetch('/api/people/bulk-add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personIds: selectedIds, platoonId: platoon_currentPlatoonId })
-      });
-      await platoon_loadData();
-    } catch (err) {
-      alert('Ошибка добавления: ' + err.message);
-    }
-  });
-
-  // Удалить выбранных из взвода
-  document.getElementById('removeFromPlatoonBtn').addEventListener('click', async () => {
-    const selectedIds = platoon_getSelectedIds('.person-checkbox:checked', 'platoon-list');
-    if (selectedIds.length === 0) return;
-    try {
-      await fetch('/api/people/bulk-remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personIds: selectedIds })
-      });
-      await platoon_loadData();
-    } catch (err) {
-      alert('Ошибка удаления: ' + err.message);
-    }
-  });
+  // Массовые операции
+  const addToPlatoonBtn = document.getElementById('addToPlatoonBtn');
+  const removeFromPlatoonBtn = document.getElementById('removeFromPlatoonBtn');
+  if (addToPlatoonBtn) {
+    addToPlatoonBtn.addEventListener('click', async () => {
+      const selectedIds = platoon_getSelectedIds('.person-checkbox:checked', 'unassigned-list');
+      if (selectedIds.length === 0) return;
+      if (!platoon_currentPlatoonId) return alert('Выберите взвод');
+      try {
+        await fetch('/api/people/bulk-add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personIds: selectedIds, platoonId: platoon_currentPlatoonId })
+        });
+        await platoon_loadData();
+      } catch (err) {
+        alert('Ошибка добавления: ' + err.message);
+      }
+    });
+  }
+  if (removeFromPlatoonBtn) {
+    removeFromPlatoonBtn.addEventListener('click', async () => {
+      const selectedIds = platoon_getSelectedIds('.person-checkbox:checked', 'platoon-list');
+      if (selectedIds.length === 0) return;
+      try {
+        await fetch('/api/people/bulk-remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personIds: selectedIds })
+        });
+        await platoon_loadData();
+      } catch (err) {
+        alert('Ошибка удаления: ' + err.message);
+      }
+    });
+  }
 }
 
 function platoon_getSelectedIds(selector, containerId) {
@@ -210,20 +212,27 @@ function platoon_updateSelectedCounts() {
   const removeBtn = document.getElementById('removeFromPlatoonBtn');
   if (addBtn) {
     addBtn.style.display = unassignedSelected > 0 ? 'inline-flex' : 'none';
-    document.getElementById('selectedCountAdd').innerText = unassignedSelected;
+    const countSpan = document.getElementById('selectedCountAdd');
+    if (countSpan) countSpan.innerText = unassignedSelected;
   }
   if (removeBtn) {
     removeBtn.style.display = platoonSelected > 0 ? 'inline-flex' : 'none';
-    document.getElementById('selectedCountRemove').innerText = platoonSelected;
+    const countSpan = document.getElementById('selectedCountRemove');
+    if (countSpan) countSpan.innerText = platoonSelected;
   }
 }
 
 function platoon_clearUI() {
-  document.getElementById('platoonsList').innerHTML = '';
-  document.getElementById('platoonTitle').innerText = 'Выберите взвод';
-  document.getElementById('peopleGrid').innerHTML = '<div class="empty-message">Выберите сбор</div>';
-  document.getElementById('addToPlatoonBtn').style.display = 'none';
-  document.getElementById('removeFromPlatoonBtn').style.display = 'none';
+  const platoonsList = document.getElementById('platoonsList');
+  const platoonTitle = document.getElementById('platoonTitle');
+  const peopleGrid = document.getElementById('peopleGrid');
+  if (platoonsList) platoonsList.innerHTML = '';
+  if (platoonTitle) platoonTitle.innerText = 'Выберите взвод';
+  if (peopleGrid) peopleGrid.innerHTML = '<div class="empty-message">Выберите сбор</div>';
+  const addBtn = document.getElementById('addToPlatoonBtn');
+  const removeBtn = document.getElementById('removeFromPlatoonBtn');
+  if (addBtn) addBtn.style.display = 'none';
+  if (removeBtn) removeBtn.style.display = 'none';
 }
 
 async function platoon_loadData() {
@@ -245,19 +254,24 @@ async function platoon_loadData() {
       platoon_renderDetail(platoon_currentPlatoonId);
     } else {
       platoon_currentPlatoonId = null;
-      document.getElementById('platoonTitle').innerText = 'Нет взводов';
-      document.getElementById('peopleGrid').innerHTML = '<div class="empty-message">Создайте взвод кнопкой выше</div>';
-      document.getElementById('generatePlatoonDocBtn').style.display = 'inline-block';
-      document.getElementById('addToPlatoonBtn').style.display = 'none';
-      document.getElementById('removeFromPlatoonBtn').style.display = 'none';
+      const platoonTitle = document.getElementById('platoonTitle');
+      const peopleGrid = document.getElementById('peopleGrid');
+      const generateBtn = document.getElementById('generatePlatoonDocBtn'); // может не быть
+      if (platoonTitle) platoonTitle.innerText = 'Нет взводов';
+      if (peopleGrid) peopleGrid.innerHTML = '<div class="empty-message">Создайте взвод кнопкой выше</div>';
+      if (generateBtn) generateBtn.style.display = 'inline-block';
+      const addBtn = document.getElementById('addToPlatoonBtn');
+      const removeBtn = document.getElementById('removeFromPlatoonBtn');
+      if (addBtn) addBtn.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'none';
     }
   } catch (err) {
     console.error(err);
-    document.getElementById('peopleGrid').innerHTML = '<div class="empty-message">Ошибка загрузки</div>';
+    const peopleGrid = document.getElementById('peopleGrid');
+    if (peopleGrid) peopleGrid.innerHTML = '<div class="empty-message">Ошибка загрузки</div>';
   }
 }
 
-// Сортировка взводов по числовому порядку
 function sortPlatoonsByNumber(platoons) {
   return platoons.sort((a, b) => {
     const numA = parseInt(a.name.match(/\d+/)?.[0] || 0);
@@ -285,7 +299,6 @@ function platoon_renderPlatoonsList() {
       </div>
     </li>
   `).join('');
-  // обработчики кликов
   document.querySelectorAll('.platoon-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.edit-platoon') || e.target.closest('.delete-platoon')) return;
@@ -331,7 +344,6 @@ function platoon_editPlatoonName(platoonId) {
   }
 }
 
-// Сортировка участников по школе и ФИО
 function sortBySchoolAndName(participants) {
   return [...participants].sort((a, b) => {
     const schoolCompare = (a.school_name || a.organization || '').localeCompare(b.school_name || b.organization || '', 'ru');
@@ -343,13 +355,14 @@ function sortBySchoolAndName(participants) {
 function platoon_renderDetail(platoonId) {
   const platoon = platoon_platoons.find(p => p.id == platoonId);
   if (!platoon) return;
-  document.getElementById('platoonTitle').innerText = platoon.name;
-  document.getElementById('generatePlatoonDocBtn').style.display = 'inline-block';
+  const titleElem = document.getElementById('platoonTitle');
+  if (titleElem) titleElem.innerText = platoon.name;
 
   const members = sortBySchoolAndName(platoon_allParticipants.filter(p => p.platoon_id === platoonId));
   const unassigned = sortBySchoolAndName(platoon_allParticipants.filter(p => !p.platoon_id));
 
   const grid = document.getElementById('peopleGrid');
+  if (!grid) return;
   grid.innerHTML = `
     <div class="people-list-container">
       <div class="list-header">
@@ -392,14 +405,14 @@ function platoon_renderDetail(platoonId) {
   const platoonList = document.getElementById('platoon-list');
   const unassignedList = document.getElementById('unassigned-list');
 
-  if (selectAllPlatoon) {
+  if (selectAllPlatoon && platoonList) {
     selectAllPlatoon.addEventListener('change', (e) => {
       const checkboxes = platoonList.querySelectorAll('.person-checkbox');
       checkboxes.forEach(cb => cb.checked = e.target.checked);
       platoon_updateSelectedCounts();
     });
   }
-  if (selectAllUnassigned) {
+  if (selectAllUnassigned && unassignedList) {
     selectAllUnassigned.addEventListener('change', (e) => {
       const checkboxes = unassignedList.querySelectorAll('.person-checkbox');
       checkboxes.forEach(cb => cb.checked = e.target.checked);
@@ -409,42 +422,20 @@ function platoon_renderDetail(platoonId) {
 
   document.querySelectorAll('.person-checkbox').forEach(cb => {
     cb.addEventListener('change', () => {
-      if (selectAllPlatoon) {
+      if (selectAllPlatoon && platoonList) {
         const allPlatoonCb = platoonList.querySelectorAll('.person-checkbox');
-        const allPlatoonChecked = Array.from(allPlatoonCb).every(c => c.checked);
-        selectAllPlatoon.checked = allPlatoonCb.length > 0 && allPlatoonChecked;
+        const allPlatoonChecked = allPlatoonCb.length > 0 && Array.from(allPlatoonCb).every(c => c.checked);
+        selectAllPlatoon.checked = allPlatoonChecked;
       }
-      if (selectAllUnassigned) {
+      if (selectAllUnassigned && unassignedList) {
         const allUnassignedCb = unassignedList.querySelectorAll('.person-checkbox');
-        const allUnassignedChecked = Array.from(allUnassignedCb).every(c => c.checked);
-        selectAllUnassigned.checked = allUnassignedCb.length > 0 && allUnassignedChecked;
+        const allUnassignedChecked = allUnassignedCb.length > 0 && Array.from(allUnassignedCb).every(c => c.checked);
+        selectAllUnassigned.checked = allUnassignedChecked;
       }
       platoon_updateSelectedCounts();
     });
   });
   platoon_updateSelectedCounts();
-}
-
-async function platoon_generateDocument(platoonId) {
-  try {
-    const response = await fetch('/api/generate-platoon-doc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ platoonId })
-    });
-    if (!response.ok) throw new Error('Ошибка генерации');
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `platoon_${platoonId}_${Date.now()}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    alert('Ошибка: ' + err.message);
-  }
 }
 
 window.renderPlatoons = renderPlatoonsSection;

@@ -212,5 +212,15 @@ router.delete('/collection-people/:personId', (req, res) => {
     res.json({ message: 'Участник удалён' });
   });
 });
-
+// Редактирование ФИО участника
+router.put('/collection-people/:personId', (req, res) => {
+  const personId = req.params.personId;
+  const { full_name } = req.body;
+  if (!full_name) return res.status(400).json({ error: 'ФИО обязательно' });
+  db.run('UPDATE collection_people SET full_name = ? WHERE id = ?', [full_name, personId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Участник не найден' });
+    res.json({ message: 'ФИО обновлено' });
+  });
+});
 module.exports = router;

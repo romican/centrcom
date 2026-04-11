@@ -1,4 +1,4 @@
-// ========== ДОКУМЕНТЫ ==========
+// ========== ДОКУМЕНТЫ (клиентская часть) ==========
 const closeSelectModalBtn = document.getElementById('closeSelectModalBtn');
 const cancelSelectBtn = document.getElementById('cancelSelectBtn');
 const generateDocBtn = document.getElementById('generateDocBtn');
@@ -65,7 +65,6 @@ function showSchoolSelector(schools) {
     }
     const schoolId = selectedRadio.value;
     modal.style.display = 'none';
-    // Генерируем документ для выбранной школы
     try {
       const response = await fetch('/api/generate-school-doc', {
         method: 'POST',
@@ -91,7 +90,6 @@ function showSchoolSelector(schools) {
   };
 }
 
-// Основная функция отрисовки раздела Документы
 window.renderDocuments = function() {
   const html = `
     <div class="documents-two-columns">
@@ -123,7 +121,6 @@ window.renderDocuments = function() {
   });
 };
 
-// Логика для Сводной ведомости: выбор сборов → выбор школы → генерация
 async function handleSvodnaya() {
   try {
     const resp = await fetch('/api/collections');
@@ -140,7 +137,6 @@ async function handleSvodnaya() {
     `).join('');
     window.selectCollectionsModal.style.display = 'flex';
     
-    // Временно подменяем обработчик кнопки "Сформировать" в модалке выбора сборов
     const oldHandler = generateDocBtn.onclick;
     generateDocBtn.onclick = async () => {
       const checkboxes = collectionsChecklistDiv.querySelectorAll('input[type="checkbox"]:checked');
@@ -150,7 +146,6 @@ async function handleSvodnaya() {
         return;
       }
       window.selectCollectionsModal.style.display = 'none';
-      // Загружаем школы из выбранных сборов
       try {
         const schoolsResp = await fetch('/api/schools/by-collections', {
           method: 'POST',
@@ -166,11 +161,9 @@ async function handleSvodnaya() {
       } catch (err) {
         alert('Ошибка загрузки школ: ' + err.message);
       }
-      // Восстанавливаем старый обработчик после закрытия модалки школ
       generateDocBtn.onclick = oldHandler;
     };
     
-    // При закрытии модалки выбора сборов (крестик или отмена) возвращаем старый обработчик
     const restoreHandler = () => {
       generateDocBtn.onclick = oldHandler;
     };
@@ -185,7 +178,6 @@ async function handleSvodnaya() {
   }
 }
 
-// Логика для Физо (100м): выбор сборов → генерация старого документа
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');
@@ -250,7 +242,6 @@ async function handleFizo() {
   }
 }
 
-// Закрытие модалки выбора сборов (крестик и отмена)
 closeSelectModalBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
 cancelSelectBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
 window.selectCollectionsModal.addEventListener('click', (e) => {

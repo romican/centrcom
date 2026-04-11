@@ -80,19 +80,35 @@ loadTheme();
 // ========== ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ С ПОДМЕНЮ ==========
 window.switchSection = function(section) {
   localStorage.setItem('activeSection', section);
-  
-const platoonsSubmenu = document.getElementById('platoonsSubmenu');
-if (section === 'collections' || section === 'platoons') {
-  if (platoonsSubmenu) platoonsSubmenu.classList.add('show');
-} else {
-  if (platoonsSubmenu) platoonsSubmenu.classList.remove('show');
-}
-  
+
+  // Управление видимостью подменю
+  const logisticsSubmenu = document.getElementById('logisticsSubmenu');
+  const collectionsSubmenu = document.getElementById('collectionsSubmenu');
+
+  // Подменю логистики (показываем при выборе "Логистика" или "Документы (логистика)")
+  if (section === 'buses' || section === 'logistics-docs') {
+    if (logisticsSubmenu) logisticsSubmenu.classList.add('show');
+  } else {
+    if (logisticsSubmenu) logisticsSubmenu.classList.remove('show');
+  }
+
+  // Подменю сборов (показываем при выборе "Сборы", "Взвода", "Документы (сборы)")
+  if (section === 'collections' || section === 'platoons' || section === 'documents') {
+    if (collectionsSubmenu) collectionsSubmenu.classList.add('show');
+  } else {
+    if (collectionsSubmenu) collectionsSubmenu.classList.remove('show');
+  }
+
+  // Обработка разделов
   if (section === 'buses') {
     window.sectionTitle.innerText = 'Логистика';
     window.addButton.style.display = 'flex';
     window.addButton.onclick = () => window.openBusModal();
     if (window.loadBuses) window.loadBuses();
+  } else if (section === 'logistics-docs') {
+    window.sectionTitle.innerText = 'Документы (логистика)';
+    window.addButton.style.display = 'none';
+    window.contentBody.innerHTML = '<div class="empty-message">Раздел в разработке</div>';
   } else if (section === 'collections') {
     window.sectionTitle.innerText = 'Сборы';
     window.addButton.style.display = 'flex';
@@ -102,15 +118,15 @@ if (section === 'collections' || section === 'platoons') {
     window.sectionTitle.innerText = 'Взвода';
     window.addButton.style.display = 'none';
     if (window.renderPlatoons) window.renderPlatoons();
+  } else if (section === 'documents') {
+    window.sectionTitle.innerText = 'Документы (сборы)';
+    window.addButton.style.display = 'none';
+    if (window.renderDocuments) window.renderDocuments();
   } else if (section === 'invoices') {
     window.sectionTitle.innerText = 'Счета';
     window.addButton.style.display = 'flex';
     window.addButton.onclick = () => window.openInvoiceModal();
     if (window.loadInvoices) window.loadInvoices();
-  } else if (section === 'documents') {
-    window.sectionTitle.innerText = 'Документы';
-    window.addButton.style.display = 'none';
-    if (window.renderDocuments) window.renderDocuments();
   } else if (section === 'employees') {
     window.sectionTitle.innerText = 'Сотрудники';
     window.addButton.style.display = 'flex';
@@ -136,7 +152,8 @@ window.toggleBtn.addEventListener('click', () => {
 // Инициализация после полной загрузки страницы
 window.addEventListener('load', function() {
   const savedSection = localStorage.getItem('activeSection');
-  if (savedSection && ['buses', 'collections', 'platoons', 'invoices', 'documents', 'employees'].includes(savedSection)) {
+  const validSections = ['buses', 'logistics-docs', 'collections', 'platoons', 'documents', 'invoices', 'employees'];
+  if (savedSection && validSections.includes(savedSection)) {
     const activeNav = document.querySelector(`.nav-item[data-section="${savedSection}"]`);
     if (activeNav) {
       document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
