@@ -286,3 +286,8 @@ body.dark-theme .person-platoon {
   background: #334155;
   color: #cbd5e1;
 }
+.btn-auto-distribute:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #6c757d !important; /* серый цвет */
+}

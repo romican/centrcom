@@ -1,4 +1,4 @@
-// ========== ДОКУМЕНТЫ (клиентская часть) ==========
+// ========== ДОКУМЕНТЫ ==========
 const closeSelectModalBtn = document.getElementById('closeSelectModalBtn');
 const cancelSelectBtn = document.getElementById('cancelSelectBtn');
 const generateDocBtn = document.getElementById('generateDocBtn');
@@ -36,7 +36,7 @@ function createSchoolSelectModal() {
   return modal;
 }
 
-function showSchoolSelector(schools) {
+function showSchoolSelector(schools, isExcel = true) {
   const modal = createSchoolSelectModal();
   const schoolsListDiv = document.getElementById('schoolsList');
   const closeBtn = document.getElementById('closeSchoolSelectModalBtn');
@@ -66,7 +66,8 @@ function showSchoolSelector(schools) {
     const schoolId = selectedRadio.value;
     modal.style.display = 'none';
     try {
-      const response = await fetch('/api/generate-school-doc', {
+      // Используем новый маршрут для Excel
+      const response = await fetch('/api/generate-school-doc-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schoolId, docType: currentDocType })
@@ -79,7 +80,7 @@ function showSchoolSelector(schools) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Svodnaya_vedomost_${Date.now()}.docx`;
+      a.download = `Svodnaya_vedomost_${Date.now()}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -90,6 +91,7 @@ function showSchoolSelector(schools) {
   };
 }
 
+// Основная функция отрисовки раздела Документы
 window.renderDocuments = function() {
   const html = `
     <div class="documents-two-columns">
@@ -121,6 +123,7 @@ window.renderDocuments = function() {
   });
 };
 
+// Логика для Сводной ведомости: выбор сборов → выбор школы → генерация Excel
 async function handleSvodnaya() {
   try {
     const resp = await fetch('/api/collections');
@@ -157,7 +160,7 @@ async function handleSvodnaya() {
           alert('В выбранных сборах нет школ с участниками');
           return;
         }
-        showSchoolSelector(schools);
+        showSchoolSelector(schools, true);
       } catch (err) {
         alert('Ошибка загрузки школ: ' + err.message);
       }
@@ -178,6 +181,7 @@ async function handleSvodnaya() {
   }
 }
 
+// Логика для Физо (100м) – оставляем без изменений (генерирует Word)
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');

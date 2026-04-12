@@ -5,7 +5,7 @@ const logisticsRoutes = require('./routes/logistics');
 const collectionsRoutes = require('./routes/collections');
 const invoicesRoutes = require('./routes/invoices');
 const employeesRoutes = require('./routes/employees');
-const documentsRoutes = require('./routes/documents');
+const documentsRoutes = require('./routes/documents');  // теперь это папка с index.js
 const platoonsRoutes = require('./routes/platoons');
 
 const app = express();

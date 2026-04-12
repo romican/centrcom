@@ -5,7 +5,6 @@ const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, '..', 'buses.db'));
 
-// ========== БАЗОВЫЕ API ВЗВОДОВ ==========
 router.get('/collections/:collectionId/platoons', (req, res) => {
   const { collectionId } = req.params;
   db.all('SELECT * FROM platoons WHERE collection_id = ? ORDER BY name', [collectionId], (err, rows) => {
@@ -70,7 +69,7 @@ router.put('/people/:personId/platoon', (req, res) => {
   });
 });
 
-// ========== МАССОВЫЕ ОПЕРАЦИИ ==========
+// Массовое добавление в взвод
 router.post('/people/bulk-add', (req, res) => {
   const { personIds, platoonId } = req.body;
   if (!personIds || !personIds.length || !platoonId) {
@@ -83,6 +82,7 @@ router.post('/people/bulk-add', (req, res) => {
   });
 });
 
+// Массовое удаление из взвода
 router.post('/people/bulk-remove', (req, res) => {
   const { personIds } = req.body;
   if (!personIds || !personIds.length) {
@@ -95,12 +95,23 @@ router.post('/people/bulk-remove', (req, res) => {
   });
 });
 
-// ========== АВТОМАТИЧЕСКОЕ РАСПРЕДЕЛЕНИЕ С ПАРАМЕТРАМИ ==========
+// Автоматическое распределение (с проверкой наличия взводов)
 router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
   const { collectionId } = req.params;
   let { maxPerPlatoon, targetPlatoonsCount } = req.body;
   maxPerPlatoon = parseInt(maxPerPlatoon) || 31;
   targetPlatoonsCount = parseInt(targetPlatoonsCount) || null;
+
+  // Проверяем, есть ли уже взвода в этом сборе
+  const existingPlatoons = await new Promise((resolve, reject) => {
+    db.get('SELECT COUNT(*) as count FROM platoons WHERE collection_id = ?', [collectionId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row ? row.count : 0);
+    });
+  });
+  if (existingPlatoons > 0) {
+    return res.status(400).json({ error: 'Удалите все взводы для повторного автоматического распределения' });
+  }
 
   try {
     // Получаем всех участников сбора с их школами
@@ -127,7 +138,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       schoolGroups[p.school].push(p);
     }
 
-    // Правила: не более maxPerPlatoon человек во взводе, приоритет целостности школы
     const minPerPlatoon = 10;
     let platoonsToCreate = [];
 
@@ -135,7 +145,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
     for (const [school, people] of Object.entries(schoolGroups)) {
       let remaining = [...people];
       if (remaining.length > maxPerPlatoon) {
-        // Делим поровну, но чтобы каждая группа была не меньше minPerPlatoon
         let numPlatoons = Math.ceil(remaining.length / maxPerPlatoon);
         let size = Math.ceil(remaining.length / numPlatoons);
         if (size < minPerPlatoon && numPlatoons > 1) {
@@ -168,9 +177,8 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
     }
     if (tempPlatoon.people.length) finalPlatoons.push({ school: tempPlatoon.school, people: [...tempPlatoon.people] });
 
-    // Если задано целевое количество взводов, перераспределяем всех участников равномерно по взводам
+    // Если задано целевое количество взводов, перераспределяем всех участников равномерно
     if (targetPlatoonsCount && targetPlatoonsCount > 0) {
-      // Собираем всех людей в один массив
       const allPeople = participants.map(p => p);
       const total = allPeople.length;
       const numPlatoons = Math.min(targetPlatoonsCount, total);
@@ -189,21 +197,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
         finalPlatoons = newPlatoons;
       }
     }
-
-    // Удаляем старые взвода этого сбора
-    await new Promise((resolve, reject) => {
-      db.run('DELETE FROM platoons WHERE collection_id = ?', [collectionId], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    // Сбрасываем platoon_id у всех участников сбора
-    await new Promise((resolve, reject) => {
-      db.run(`UPDATE collection_people SET platoon_id = NULL WHERE school_id IN (SELECT id FROM collection_schools WHERE collection_id = ?)`, [collectionId], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
 
     // Создаём новые взвода и распределяем участников
     for (let i = 0; i < finalPlatoons.length; i++) {
