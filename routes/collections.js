@@ -83,7 +83,7 @@ router.get('/collections/:id/schools', (req, res) => {
 
 router.post('/collections/:id/schools', (req, res) => {
   const collectionId = req.params.id;
-  const { edu_org, peopleList, leader } = req.body;
+  const { edu_org, head_teacher, peopleList } = req.body;
   if (!edu_org || !peopleList) {
     return res.status(400).json({ error: 'Название школы и список людей обязательны' });
   }
@@ -95,8 +95,8 @@ router.post('/collections/:id/schools', (req, res) => {
 
   db.run('BEGIN TRANSACTION');
   db.run(
-    `INSERT INTO collection_schools (collection_id, edu_org, leader) VALUES (?, ?, ?)`,
-    [collectionId, edu_org, leader || ''],
+    `INSERT INTO collection_schools (collection_id, edu_org, head_teacher) VALUES (?, ?, ?)`,
+    [collectionId, edu_org, head_teacher || null],
     function(err) {
       if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
       const schoolId = this.lastID;
@@ -130,25 +130,25 @@ router.put('/schools/:schoolId', (req, res) => {
   const schoolId = req.params.schoolId;
   const { edu_org, head_teacher } = req.body;
   if (!edu_org) return res.status(400).json({ error: 'Название школы обязательно' });
-  
+
   db.run('BEGIN TRANSACTION', (err) => {
     if (err) return res.status(500).json({ error: err.message });
-    
-    // Обновляем название и руководителя
-    db.run('UPDATE collection_schools SET edu_org = ?, head_teacher = ? WHERE id = ?', 
-      [edu_org, head_teacher || null, schoolId], function(err) {
-      if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-      if (this.changes === 0) { db.run('ROLLBACK'); return res.status(404).json({ error: 'Школа не найдена' }); }
-      
-      // Обновляем поле organization у всех участников (если изменилось название школы)
-      db.run('UPDATE collection_people SET organization = ? WHERE school_id = ?', [edu_org, schoolId], function(err) {
+    db.run(
+      `UPDATE collection_schools SET edu_org = ?, head_teacher = ? WHERE id = ?`,
+      [edu_org, head_teacher || null, schoolId],
+      function(err) {
         if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-        db.run('COMMIT', (err) => {
+        if (this.changes === 0) { db.run('ROLLBACK'); return res.status(404).json({ error: 'Школа не найдена' }); }
+        // Обновляем поле organization у участников этой школы
+        db.run(`UPDATE collection_people SET organization = ? WHERE school_id = ?`, [edu_org, schoolId], (err) => {
           if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-          res.json({ message: 'Школа обновлена', updatedPeople: this.changes });
+          db.run('COMMIT', (err) => {
+            if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
+            res.json({ message: 'Школа обновлена' });
+          });
         });
-      });
-    });
+      }
+    );
   });
 });
 
@@ -200,5 +200,15 @@ router.delete('/collection-people/:personId', (req, res) => {
     res.json({ message: 'Участник удалён' });
   });
 });
-
+// Редактирование ФИО участника
+router.put('/collection-people/:personId', (req, res) => {
+  const personId = req.params.personId;
+  const { full_name } = req.body;
+  if (!full_name) return res.status(400).json({ error: 'ФИО обязательно' });
+  db.run('UPDATE collection_people SET full_name = ? WHERE id = ?', [full_name, personId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Участник не найден' });
+    res.json({ message: 'ФИО обновлено' });
+  });
+});
 module.exports = router;
