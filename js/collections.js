@@ -11,9 +11,9 @@ let currentCollectionId = null;
 let currentSchoolId = null;
 let currentSchoolName = null;
 let allSchools = [];
-let currentSort = 'name'; // 'name' или 'platoon'
+let currentSort = 'name';
 
-// Модальное окно списка школ (без изменений)
+// Модальное окно списка школ
 const schoolsModal = document.createElement('div');
 schoolsModal.id = 'schoolsModal';
 schoolsModal.className = 'modal';
@@ -30,7 +30,7 @@ schoolsModal.innerHTML = `
     <div style="flex: 1; overflow-y: auto; padding: 0 20px;" id="schoolsListContainer">
       <table style="width:100%; border-collapse: collapse;" id="schoolsTable">
         <thead>
-          <tr><th>Школа</th><th>Кол-во человек</th><th style="width:120px">Действия</th></tr>
+          <tr><th>Школа</th><th>Руководитель</th><th>Кол-во человек</th><th style="width:120px">Действия</th></tr>
         </thead>
         <tbody id="schoolsTableBody"></tbody>
       </table>
@@ -48,7 +48,7 @@ const schoolsTableBody = document.getElementById('schoolsTableBody');
 const addSchoolBtn = document.getElementById('addSchoolBtn');
 const searchSchoolInput = document.getElementById('searchSchoolInput');
 
-// Модальное окно добавления школы (без изменений)
+// Модальное окно добавления школы
 const addSchoolModal = document.createElement('div');
 addSchoolModal.id = 'addSchoolModal';
 addSchoolModal.className = 'modal';
@@ -63,6 +63,10 @@ addSchoolModal.innerHTML = `
         <div class="form-group">
           <label><i class="fas fa-school"></i> Название школы</label>
           <input type="text" id="schoolName" placeholder="ГБОУ Школа №..." required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-user-tie"></i> Руководитель сборов (школа)</label>
+          <input type="text" id="headTeacher" placeholder="Иванов Иван Иванович">
         </div>
         <div class="form-group">
           <label><i class="fas fa-list-ul"></i> Список людей (ФИО, каждый с новой строки)</label>
@@ -82,9 +86,46 @@ const closeAddSchoolModalBtn = document.getElementById('closeAddSchoolModalBtn')
 const cancelAddSchoolBtn = document.getElementById('cancelAddSchoolBtn');
 const addSchoolForm = document.getElementById('addSchoolForm');
 const schoolNameInput = document.getElementById('schoolName');
+const headTeacherInput = document.getElementById('headTeacher');
 const schoolPeopleListTextarea = document.getElementById('schoolPeopleList');
 
-// Модальное окно просмотра участников школы (с кнопками сортировки и редактирования)
+// Модальное окно редактирования школы
+const editSchoolModal = document.createElement('div');
+editSchoolModal.id = 'editSchoolModal';
+editSchoolModal.className = 'modal';
+editSchoolModal.innerHTML = `
+  <div class="modal-content" style="max-width: 450px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-edit"></i> Редактировать школу</h2>
+      <button class="close-modal" id="closeEditSchoolModalBtn">&times;</button>
+    </div>
+    <div style="padding: 16px 24px;">
+      <form id="editSchoolForm">
+        <div class="form-group">
+          <label><i class="fas fa-school"></i> Название школы</label>
+          <input type="text" id="editSchoolName" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-user-tie"></i> Руководитель сборов (школа)</label>
+          <input type="text" id="editHeadTeacher">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn cancel" id="cancelEditSchoolBtn">Отменить</button>
+          <button type="submit" class="btn add">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+`;
+document.body.appendChild(editSchoolModal);
+
+const closeEditSchoolModalBtn = document.getElementById('closeEditSchoolModalBtn');
+const cancelEditSchoolBtn = document.getElementById('cancelEditSchoolBtn');
+const editSchoolForm = document.getElementById('editSchoolForm');
+const editSchoolNameInput = document.getElementById('editSchoolName');
+const editHeadTeacherInput = document.getElementById('editHeadTeacher');
+
+// Модальное окно просмотра участников школы
 const peopleModal = document.createElement('div');
 peopleModal.id = 'peopleModal';
 peopleModal.className = 'modal';
@@ -165,7 +206,7 @@ async function loadCollections() {
 
 function renderCollections(collections) {
   if (!collections.length) {
-    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tbody>}</div>`;
+    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tr></tbody></table></div>`;
     return;
   }
   let html = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody>`;
@@ -183,7 +224,7 @@ function renderCollections(collections) {
       </td>
     </tr>`;
   });
-  html += `</tbody></tr></div>`;
+  html += `</tbody></table></div>`;
   window.contentBody.innerHTML = html;
   
   document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -292,7 +333,7 @@ async function loadSchools(collectionId) {
     allSchools = await resp.json();
     filterSchools();
   } catch (err) {
-    schoolsTableBody.innerHTML = '<tr><td colspan="3">Ошибка загрузки школ</td></tr>';
+    schoolsTableBody.innerHTML = '<tr><td colspan="4">Ошибка загрузки школ</td></tr>';
   }
 }
 
@@ -305,18 +346,19 @@ function filterSchools() {
 
 function renderSchoolsTable(schools) {
   if (!schools.length) {
-    schoolsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center">Нет школ. Нажмите "Добавить школу".</td></tr>';
+    schoolsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center">Нет школ. Нажмите "Добавить школу".</td></tr>';
     return;
   }
   schoolsTableBody.innerHTML = schools.map(school => `
     <tr class="school-row" data-school-id="${school.id}">
       <td class="school-name">${window.escapeHtml(school.edu_org)}</td>
+      <td class="school-head">${window.escapeHtml(school.head_teacher || '—')}</td>
       <td class="school-count">${school.people_count || 0}</td>
       <td class="school-actions">
         <button class="edit-school-btn" data-school-id="${school.id}" style="background:none; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;"><i class="fas fa-edit"></i></button>
         <button class="delete-school-btn" data-school-id="${school.id}" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-trash-alt"></i></button>
       </td>
-    </tr>
+    </table>
   `).join('');
   
   document.querySelectorAll('.school-row').forEach(row => {
@@ -340,28 +382,46 @@ function renderSchoolsTable(schools) {
       }
     });
   });
+  // ========== НОВЫЙ ОБРАБОТЧИК РЕДАКТИРОВАНИЯ ШКОЛЫ (МОДАЛКА) ==========
   document.querySelectorAll('.edit-school-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const schoolId = btn.getAttribute('data-school-id');
-      const currentName = btn.closest('.school-row').querySelector('.school-name').innerText;
-      const newName = prompt('Введите новое название школы:', currentName);
-      if (newName && newName.trim() && newName.trim() !== currentName) {
+      const row = btn.closest('.school-row');
+      const currentName = row.querySelector('.school-name').innerText;
+      const currentHead = row.querySelector('.school-head').innerText;
+      editSchoolNameInput.value = currentName;
+      editHeadTeacherInput.value = (currentHead === '—') ? '' : currentHead;
+      editSchoolForm.onsubmit = async (event) => {
+        event.preventDefault();
+        const newName = editSchoolNameInput.value.trim();
+        const newHead = editHeadTeacherInput.value.trim();
+        if (!newName) {
+          alert('Название школы обязательно');
+          return;
+        }
         try {
           await fetch(`/api/schools/${schoolId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ edu_org: newName.trim() })
+            body: JSON.stringify({ edu_org: newName, head_teacher: newHead || null })
           });
           await loadSchools(currentCollectionId);
           loadCollections();
+          editSchoolModal.style.display = 'none';
         } catch (err) {
           alert('Ошибка редактирования: ' + err.message);
         }
-      }
+      };
+      editSchoolModal.style.display = 'flex';
     });
   });
 }
+
+// Закрытие модалки редактирования школы
+closeEditSchoolModalBtn.addEventListener('click', () => editSchoolModal.style.display = 'none');
+cancelEditSchoolBtn.addEventListener('click', () => editSchoolModal.style.display = 'none');
+editSchoolModal.addEventListener('click', (e) => { if (e.target === editSchoolModal) editSchoolModal.style.display = 'none'; });
 
 // ========== МОДАЛКА ДОБАВЛЕНИЯ ШКОЛЫ ==========
 addSchoolBtn.addEventListener('click', () => {
@@ -374,6 +434,7 @@ cancelAddSchoolBtn.addEventListener('click', () => addSchoolModal.style.display 
 addSchoolForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const edu_org = schoolNameInput.value.trim();
+  const head_teacher = headTeacherInput.value.trim();
   const peopleList = schoolPeopleListTextarea.value;
   if (!edu_org || !peopleList) {
     alert('Заполните название школы и список людей');
@@ -383,44 +444,33 @@ addSchoolForm.addEventListener('submit', async (e) => {
     const response = await fetch(`/api/collections/${currentCollectionId}/schools`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edu_org, peopleList })
+      body: JSON.stringify({ edu_org, head_teacher, peopleList })
     });
     if (!response.ok) throw new Error('Ошибка сервера');
     const data = await response.json();
-    
-    // Закрыть модалку добавления
+    if (data.schools) {
+      allSchools = data.schools;
+      filterSchools();
+    } else {
+      await loadSchools(currentCollectionId);
+    }
+    loadCollections();
     addSchoolModal.style.display = 'none';
     schoolNameInput.value = '';
+    headTeacherInput.value = '';
     schoolPeopleListTextarea.value = '';
-    
-    // Принудительно перезагрузить список школ через 0.5 секунды (для надёжности)
-    await loadSchools(currentCollectionId);
-    filterSchools();
-    
-    // Дополнительная проверка: если people_count не совпадает с количеством строк в списке
-    const expectedCount = peopleList.split(/\r?\n/).filter(l => l.trim().length > 0).length;
-    const actualCount = allSchools.find(s => s.edu_org === edu_org)?.people_count || 0;
-    if (actualCount !== expectedCount) {
-      console.warn(`Несоответствие: ожидалось ${expectedCount}, получено ${actualCount}. Возможно, ошибка в данных.`);
-      // Попробуем перезагрузить ещё раз через 1 секунду
-      setTimeout(async () => {
-        await loadSchools(currentCollectionId);
-        filterSchools();
-      }, 1000);
-    }
-    
-    // Обновить основную таблицу сборов (количество участников)
-    loadCollections();
   } catch (err) {
     alert('Ошибка добавления школы: ' + err.message);
   }
 });
 
-// ========== МОДАЛКА ПРОСМОТРА УЧАСТНИКОВ ШКОЛЫ (с сортировкой и редактированием) ==========
+// ========== МОДАЛКА ПРОСМОТРА УЧАСТНИКОВ ШКОЛЫ ==========
 async function openPeopleModal(schoolId, schoolName) {
   currentSchoolId = schoolId;
   currentSchoolName = schoolName;
-  peopleInfoDiv.innerHTML = `<strong>Школа:</strong> ${window.escapeHtml(schoolName)}`;
+  const schoolInfo = allSchools.find(s => s.id == schoolId);
+  const headTeacherHtml = schoolInfo && schoolInfo.head_teacher ? `<br><strong>Руководитель сборов:</strong> ${window.escapeHtml(schoolInfo.head_teacher)}` : '';
+  peopleInfoDiv.innerHTML = `<strong>Школа:</strong> ${window.escapeHtml(schoolName)}${headTeacherHtml}`;
   await loadPeopleForSchool(schoolId);
   peopleModal.style.display = 'flex';
   addPersonFormDiv.style.display = 'none';
@@ -429,7 +479,6 @@ async function openPeopleModal(schoolId, schoolName) {
   currentSort = 'name';
   filterPeople();
   
-  // Обработчики кнопок сортировки
   document.getElementById('sortByNameBtn').onclick = () => {
     currentSort = 'name';
     filterPeople();
@@ -445,6 +494,7 @@ async function loadPeopleForSchool(schoolId) {
     const resp = await fetch(`/api/schools/${schoolId}/people`);
     if (!resp.ok) throw new Error();
     allPeople = await resp.json();
+    filterPeople();
   } catch (err) { console.error(err); }
 }
 
@@ -453,13 +503,12 @@ function filterPeople() {
   let filtered = [...allPeople];
   if (searchTerm) filtered = filtered.filter(p => p.full_name.toLowerCase().includes(searchTerm));
   
-  // Сортировка
   if (currentSort === 'name') {
     filtered.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
   } else if (currentSort === 'platoon') {
     filtered.sort((a, b) => {
       const getOrder = (p) => {
-        if (!p.platoon_name) return 0; // Не распределён – первыми
+        if (!p.platoon_name) return 0;
         const match = p.platoon_name.match(/\d+/);
         if (match) return parseInt(match[0]);
         return 999;
@@ -494,7 +543,6 @@ function renderPeopleTable(people) {
     `;
   }).join('');
   
-  // Удаление участника
   document.querySelectorAll('.delete-person-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -507,29 +555,25 @@ function renderPeopleTable(people) {
     });
   });
   
-// Редактирование участника
-document.querySelectorAll('.edit-person-btn').forEach(btn => {
-  btn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const personId = btn.getAttribute('data-person-id');
-    const currentName = btn.closest('tr').querySelector('td:nth-child(2)').innerText;
-    const newName = prompt('Введите новое ФИО:', currentName);
-    if (newName && newName.trim() && newName.trim() !== currentName) {
-      try {
-        await fetch(`/api/collection-people/${personId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name: newName.trim() })
-        });
-        await loadPeopleForSchool(currentSchoolId);
-        filterPeople();   // <-- обновляет таблицу сразу
-        loadCollections(); // обновляет количество в таблице сборов
-      } catch (err) {
-        alert('Ошибка редактирования: ' + err.message);
+  document.querySelectorAll('.edit-person-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const personId = btn.getAttribute('data-person-id');
+      const currentName = btn.closest('tr').querySelector('td:nth-child(2)').innerText;
+      const newName = prompt('Введите новое ФИО:', currentName);
+      if (newName && newName.trim() && newName.trim() !== currentName) {
+        try {
+          await fetch(`/api/collection-people/${personId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name: newName.trim() })
+          });
+          await loadPeopleForSchool(currentSchoolId);
+          loadCollections();
+        } catch (err) { alert('Ошибка редактирования: ' + err.message); }
       }
-    }
+    });
   });
-});
 }
 
 addPersonBtn.addEventListener('click', () => {
@@ -561,7 +605,6 @@ searchPersonInput.addEventListener('input', filterPeople);
 closePeopleModalBtn.addEventListener('click', () => peopleModal.style.display = 'none');
 peopleModal.addEventListener('click', (e) => { if (e.target === peopleModal) peopleModal.style.display = 'none'; });
 
-// Закрытие модалок
 closeSchoolsModalBtn.addEventListener('click', () => schoolsModal.style.display = 'none');
 schoolsModal.addEventListener('click', (e) => { if (e.target === schoolsModal) schoolsModal.style.display = 'none'; });
 addSchoolModal.addEventListener('click', (e) => { if (e.target === addSchoolModal) addSchoolModal.style.display = 'none'; });

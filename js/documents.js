@@ -7,9 +7,8 @@ const collectionsChecklistDiv = document.getElementById('collectionsChecklist');
 let currentDocType = null;
 let selectedCollectionIds = [];
 
-// Модалка выбора школы (создаётся один раз)
+// Модалка выбора школы (для сводной ведомости)
 let schoolSelectModal = null;
-
 function createSchoolSelectModal() {
   if (schoolSelectModal) return schoolSelectModal;
   const modal = document.createElement('div');
@@ -36,7 +35,7 @@ function createSchoolSelectModal() {
   return modal;
 }
 
-function showSchoolSelector(schools, isExcel = true) {
+function showSchoolSelector(schools, docType) {
   const modal = createSchoolSelectModal();
   const schoolsListDiv = document.getElementById('schoolsList');
   const closeBtn = document.getElementById('closeSchoolSelectModalBtn');
@@ -66,11 +65,10 @@ function showSchoolSelector(schools, isExcel = true) {
     const schoolId = selectedRadio.value;
     modal.style.display = 'none';
     try {
-      // Используем новый маршрут для Excel
       const response = await fetch('/api/generate-school-doc-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schoolId, docType: currentDocType })
+        body: JSON.stringify({ schoolId, docType })
       });
       if (!response.ok) {
         const err = await response.json();
@@ -81,6 +79,88 @@ function showSchoolSelector(schools, isExcel = true) {
       const a = document.createElement('a');
       a.href = url;
       a.download = `Svodnaya_vedomost_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Ошибка: ' + err.message);
+    }
+  };
+}
+
+// Модалка выбора взвода (для Физо)
+let platoonSelectModal = null;
+function createPlatoonSelectModal() {
+  if (platoonSelectModal) return platoonSelectModal;
+  const modal = document.createElement('div');
+  modal.id = 'platoonSelectModal';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2><i class="fas fa-users"></i> Выберите взвод</h2>
+        <button class="close-modal" id="closePlatoonSelectModalBtn">&times;</button>
+      </div>
+      <div style="padding: 16px 24px;">
+        <p style="margin-bottom: 16px;">Для выбранного сбора доступны следующие взвода:</p>
+        <div id="platoonsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button id="cancelPlatoonSelectBtn" class="btn cancel">Отмена</button>
+          <button id="confirmPlatoonBtn" class="btn add">Сформировать</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  platoonSelectModal = modal;
+  return modal;
+}
+
+function showPlatoonSelector(platoons) {
+  const modal = createPlatoonSelectModal();
+  const platoonsListDiv = document.getElementById('platoonsList');
+  const closeBtn = document.getElementById('closePlatoonSelectModalBtn');
+  const cancelBtn = document.getElementById('cancelPlatoonSelectBtn');
+  const confirmBtn = document.getElementById('confirmPlatoonBtn');
+  
+  platoonsListDiv.innerHTML = platoons.map(platoon => `
+    <label style="display: block; margin-bottom: 12px; cursor: pointer;">
+      <input type="radio" name="selectedPlatoon" value="${platoon.id}"> 
+      ${window.escapeHtml(platoon.name)} (${platoon.people_count || 0} чел.)
+    </label>
+  `).join('');
+  
+  modal.style.display = 'flex';
+  
+  const closeModal = () => modal.style.display = 'none';
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+  
+  confirmBtn.onclick = async () => {
+    const selectedRadio = document.querySelector('#platoonsList input[type="radio"]:checked');
+    if (!selectedRadio) {
+      alert('Выберите взвод');
+      return;
+    }
+    const platoonId = selectedRadio.value;
+    modal.style.display = 'none';
+    try {
+      const response = await fetch('/api/generate-fizo-platoon-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platoonId })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Ошибка генерации');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Fizo_100m_${Date.now()}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -116,14 +196,14 @@ window.renderDocuments = function() {
       currentDocType = btn.getAttribute('data-doc');
       if (currentDocType === 'Сводная ведомость') {
         await handleSvodnaya();
-      } else {
+      } else if (currentDocType === 'Физо (100м)') {
         await handleFizo();
       }
     });
   });
 };
 
-// Логика для Сводной ведомости: выбор сборов → выбор школы → генерация Excel
+// Логика для Сводной ведомости (школы)
 async function handleSvodnaya() {
   try {
     const resp = await fetch('/api/collections');
@@ -160,7 +240,7 @@ async function handleSvodnaya() {
           alert('В выбранных сборах нет школ с участниками');
           return;
         }
-        showSchoolSelector(schools, true);
+        showSchoolSelector(schools, currentDocType);
       } catch (err) {
         alert('Ошибка загрузки школ: ' + err.message);
       }
@@ -181,7 +261,7 @@ async function handleSvodnaya() {
   }
 }
 
-// Логика для Физо (100м) – оставляем без изменений (генерирует Word)
+// Логика для Физо (100м) – выбор сборов → выбор взвода → генерация Word
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');
@@ -201,33 +281,24 @@ async function handleFizo() {
     const oldHandler = generateDocBtn.onclick;
     generateDocBtn.onclick = async () => {
       const checkboxes = collectionsChecklistDiv.querySelectorAll('input[type="checkbox"]:checked');
-      const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-      if (selectedIds.length === 0) {
+      const selectedCollectionIds = Array.from(checkboxes).map(cb => cb.value);
+      if (selectedCollectionIds.length === 0) {
         alert('Выберите хотя бы один сбор');
         return;
       }
       window.selectCollectionsModal.style.display = 'none';
+      // Получаем взвода для выбранного сбора (берём первый выбранный сбор, можно расширить)
+      const collectionId = selectedCollectionIds[0];
       try {
-        const response = await fetch('/api/generate-doc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collectionIds: selectedIds, docType: currentDocType })
-        });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || 'Ошибка генерации');
+        const platoonsResp = await fetch(`/api/collections/${collectionId}/platoons`);
+        const platoons = await platoonsResp.json();
+        if (!platoons.length) {
+          alert('В выбранном сборе нет взводов. Сначала создайте взвода в разделе "Взвода".');
+          return;
         }
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Fizo_100m_${Date.now()}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        showPlatoonSelector(platoons);
       } catch (err) {
-        alert('Ошибка: ' + err.message);
+        alert('Ошибка загрузки взводов: ' + err.message);
       }
       generateDocBtn.onclick = oldHandler;
     };

@@ -24,15 +24,16 @@ function initDb() {
       military_unit TEXT NOT NULL
     )`);
 
-    // Школы сборов
+    // Школы сборов – добавлена колонка leader
     db.run(`CREATE TABLE IF NOT EXISTS collection_schools (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       collection_id INTEGER NOT NULL,
       edu_org TEXT NOT NULL,
+      leader TEXT,
       FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
     )`);
 
-    // Участники (с колонкой organization и platoon_id)
+    // Участники
     db.run(`CREATE TABLE IF NOT EXISTS collection_people (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       school_id INTEGER NOT NULL,

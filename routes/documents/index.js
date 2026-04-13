@@ -2,10 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../db/connection');
 
-const generateSchoolDoc = require('./schoolDoc');          // старый (Word)
-const generateSchoolDocExcel = require('./schoolDocExcel'); // новый (Excel)
-const generateFizoDoc = require('./fizoDoc');
-const generatePlatoonDoc = require('./platoonDoc');
+const generateSchoolDocExcel = require('./schoolDocExcel');
+const generateFizoPlatoonExcel = require('./fizoPlatoonDoc'); // тот же файл, но теперь Excel
 
 router.post('/schools/by-collections', (req, res) => {
   const { collectionIds } = req.body;
@@ -27,10 +25,7 @@ router.post('/schools/by-collections', (req, res) => {
   });
 });
 
-router.post('/generate-school-doc', generateSchoolDoc);          // старый маршрут
-router.post('/generate-school-doc-excel', generateSchoolDocExcel); // новый маршрут
-
-router.post('/generate-doc', generateFizoDoc);
-router.post('/generate-platoon-doc', generatePlatoonDoc);
+router.post('/generate-school-doc-excel', generateSchoolDocExcel);
+router.post('/generate-fizo-platoon-excel', generateFizoPlatoonExcel); // новый маршрут
 
 module.exports = router;

@@ -5,14 +5,24 @@ const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, '..', 'buses.db'));
 
+// Получить все взвода сбора с количеством участников
 router.get('/collections/:collectionId/platoons', (req, res) => {
   const { collectionId } = req.params;
-  db.all('SELECT * FROM platoons WHERE collection_id = ? ORDER BY name', [collectionId], (err, rows) => {
+  const sql = `
+    SELECT p.id, p.name, COUNT(cp.id) as people_count
+    FROM platoons p
+    LEFT JOIN collection_people cp ON cp.platoon_id = p.id
+    WHERE p.collection_id = ?
+    GROUP BY p.id
+    ORDER BY p.name
+  `;
+  db.all(sql, [collectionId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
+// Создать взвод
 router.post('/collections/:collectionId/platoons', (req, res) => {
   const { collectionId } = req.params;
   const { name } = req.body;
@@ -23,6 +33,7 @@ router.post('/collections/:collectionId/platoons', (req, res) => {
   });
 });
 
+// Редактировать название взвода
 router.put('/platoons/:platoonId', (req, res) => {
   const { platoonId } = req.params;
   const { name } = req.body;
@@ -34,6 +45,7 @@ router.put('/platoons/:platoonId', (req, res) => {
   });
 });
 
+// Удалить взвод (сброс platoon_id у участников)
 router.delete('/platoons/:platoonId', (req, res) => {
   const { platoonId } = req.params;
   db.run('UPDATE collection_people SET platoon_id = NULL WHERE platoon_id = ?', [platoonId], (err) => {
@@ -45,6 +57,7 @@ router.delete('/platoons/:platoonId', (req, res) => {
   });
 });
 
+// Получить всех участников сбора с их школами и текущим взводом
 router.get('/collections/:collectionId/participants', (req, res) => {
   const { collectionId } = req.params;
   const sql = `
@@ -60,6 +73,7 @@ router.get('/collections/:collectionId/participants', (req, res) => {
   });
 });
 
+// Назначить участнику взвод
 router.put('/people/:personId/platoon', (req, res) => {
   const { personId } = req.params;
   const { platoon_id } = req.body;
@@ -160,12 +174,11 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       }
     }
 
-    // Объединяем маленькие группы (менее minPerPlatoon) в один взвод, но не более maxPerPlatoon
+    // Объединяем маленькие группы
     const smallGroups = platoonsToCreate.filter(g => g.people.length < minPerPlatoon);
     const largeGroups = platoonsToCreate.filter(g => g.people.length >= minPerPlatoon);
     let finalPlatoons = [...largeGroups];
 
-    // Объединяем маленькие группы
     let tempPlatoon = { people: [], school: 'Смешанный' };
     for (const group of smallGroups) {
       if (tempPlatoon.people.length + group.people.length <= maxPerPlatoon) {
@@ -177,7 +190,7 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
     }
     if (tempPlatoon.people.length) finalPlatoons.push({ school: tempPlatoon.school, people: [...tempPlatoon.people] });
 
-    // Если задано целевое количество взводов, перераспределяем всех участников равномерно
+    // Если задано целевое количество взводов, перераспределяем равномерно
     if (targetPlatoonsCount && targetPlatoonsCount > 0) {
       const allPeople = participants.map(p => p);
       const total = allPeople.length;
@@ -197,6 +210,20 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
         finalPlatoons = newPlatoons;
       }
     }
+
+    // Удаляем старые взвода и сбрасываем platoon_id
+    await new Promise((resolve, reject) => {
+      db.run('DELETE FROM platoons WHERE collection_id = ?', [collectionId], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    await new Promise((resolve, reject) => {
+      db.run(`UPDATE collection_people SET platoon_id = NULL WHERE school_id IN (SELECT id FROM collection_schools WHERE collection_id = ?)`, [collectionId], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
     // Создаём новые взвода и распределяем участников
     for (let i = 0; i < finalPlatoons.length; i++) {

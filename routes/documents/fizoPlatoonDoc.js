@@ -9,39 +9,38 @@ function formatDate(dateStr) {
 }
 
 module.exports = async (req, res) => {
-  const { schoolId, docType } = req.body;
-  if (!schoolId) return res.status(400).json({ error: 'Не указана школа' });
+  const { platoonId } = req.body;
+  if (!platoonId) return res.status(400).json({ error: 'Не указан взвод' });
 
   try {
-    const schoolInfo = await new Promise((resolve, reject) => {
+    const platoonInfo = await new Promise((resolve, reject) => {
       db.get(`
-        SELECT s.edu_org, c.date_start, c.date_end
-        FROM collection_schools s
-        JOIN collections c ON s.collection_id = c.id
-        WHERE s.id = ?
-      `, [schoolId], (err, row) => {
+        SELECT p.name, c.date_start, c.date_end
+        FROM platoons p
+        JOIN collections c ON p.collection_id = c.id
+        WHERE p.id = ?
+      `, [platoonId], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
     });
-    if (!schoolInfo) return res.status(404).json({ error: 'Школа не найдена' });
+    if (!platoonInfo) return res.status(404).json({ error: 'Взвод не найден' });
 
     const people = await new Promise((resolve, reject) => {
       db.all(`
-        SELECT full_name FROM collection_people
-        WHERE school_id = ?
-        ORDER BY full_name COLLATE NOCASE
-      `, [schoolId], (err, rows) => {
+        SELECT cp.full_name
+        FROM collection_people cp
+        JOIN collection_schools cs ON cp.school_id = cs.id
+        WHERE cp.platoon_id = ?
+        ORDER BY cp.full_name COLLATE NOCASE
+      `, [platoonId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-    if (!people.length) return res.status(404).json({ error: 'В школе нет участников' });
+    if (!people.length) return res.status(404).json({ error: 'Во взводе нет участников' });
 
-    // Шаблон (пока один)
-    const templateFile = 'svodnaya_template.xlsx';
-    const templatePath = path.join(__dirname, '../../templates/contracts', templateFile);
-    
+    const templatePath = path.join(__dirname, '../../templates/internal/Fizo_100m.xlsx');
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
     const worksheet = workbook.getWorksheet(1);
@@ -51,9 +50,9 @@ module.exports = async (req, res) => {
       row.eachCell(cell => {
         let value = cell.text;
         if (typeof value === 'string') {
-          value = value.replace('{{SCHOOL_NAME}}', schoolInfo.edu_org);
-          value = value.replace('{{DATE_START}}', formatDate(schoolInfo.date_start));
-          value = value.replace('{{DATE_END}}', formatDate(schoolInfo.date_end));
+          value = value.replace('{{PLATOON_NAME}}', platoonInfo.name);
+          value = value.replace('{{DATE_START}}', formatDate(platoonInfo.date_start));
+          value = value.replace('{{DATE_END}}', formatDate(platoonInfo.date_end));
           if (value !== cell.text) cell.value = value;
         }
       });
@@ -78,6 +77,7 @@ module.exports = async (req, res) => {
       worksheet.spliceRows(startRowIndex, 1);
     }
 
+    // Строка-образец для копирования основных стилей (шрифт, выравнивание, заливка)
     let templateRow = null;
     if (startRowIndex > 1) {
       templateRow = worksheet.getRow(startRowIndex - 1);
@@ -85,33 +85,40 @@ module.exports = async (req, res) => {
       templateRow = worksheet.getRow(startRowIndex + 1);
     }
 
+    // Вставляем пустые строки
     worksheet.spliceRows(startRowIndex, 0, ...new Array(people.length).fill([]));
 
     for (let i = 0; i < people.length; i++) {
       const row = worksheet.getRow(startRowIndex + i);
-      const numCell = row.getCell(1);
+      
+      // Номер п/п – в ячейку слева от метки
+      const numCell = row.getCell(nameColIndex - 1);
       numCell.value = (i + 1).toString();
+      
+      // ФИО – в ячейку метки
       const nameCell = row.getCell(nameColIndex);
       nameCell.value = people[i].full_name;
-
+      
+      // Копируем стили из строки-образца (шрифт, выравнивание, заливка)
       if (templateRow) {
         for (let col = 1; col <= row.cellCount; col++) {
           const targetCell = row.getCell(col);
           const sourceCell = templateRow.getCell(col);
           if (sourceCell && sourceCell.style) {
-            targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
+            // Копируем всё, кроме border
+            const styleCopy = JSON.parse(JSON.stringify(sourceCell.style));
+            if (styleCopy.border) delete styleCopy.border;
+            targetCell.style = styleCopy;
           }
         }
       }
-
-      if (nameCell.style && nameCell.style.alignment) {
-        nameCell.style.alignment.wrapText = true;
-      } else {
-        nameCell.style = { alignment: { wrapText: true, vertical: 'middle', horizontal: 'left' } };
-      }
-
+      
+      // ========== ПРИНУДИТЕЛЬНЫЕ ГРАНИЦЫ (кроме колонки A) ==========
+      // Границы будут у всех колонок, начиная с колонки 2 (B) и до последней.
+      // Если вы хотите, чтобы границы были и в колонке A, измените startCol на 1.
+      const startCol = 2; // ← сюда можно поставить 1, если нужны границы и в номере
       const lastCol = worksheet.columnCount;
-      for (let col = 1; col <= lastCol; col++) {
+      for (let col = startCol; col <= lastCol; col++) {
         const cell = row.getCell(col);
         if (!cell.style) cell.style = {};
         cell.style.border = {
@@ -125,8 +132,7 @@ module.exports = async (req, res) => {
 
     const buffer = await workbook.xlsx.writeBuffer();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    const fileName = `Svodnaya_vedomost_${Date.now()}.xlsx`; // только латиница
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename=Fizo_100m_${Date.now()}.xlsx`);
     res.send(buffer);
   } catch (err) {
     console.error(err);
