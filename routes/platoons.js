@@ -5,7 +5,7 @@ const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, '..', 'buses.db'));
 
-// Получить все взвода сбора с количеством участников
+// ========== БАЗОВЫЕ API ВЗВОДОВ ==========
 router.get('/collections/:collectionId/platoons', (req, res) => {
   const { collectionId } = req.params;
   const sql = `
@@ -22,7 +22,24 @@ router.get('/collections/:collectionId/platoons', (req, res) => {
   });
 });
 
-// Создать взвод
+// НОВЫЙ МАРШРУТ: получить взвода, в которых есть участники из указанной школы
+router.get('/schools/:schoolId/platoons', (req, res) => {
+  const { schoolId } = req.params;
+  const sql = `
+    SELECT DISTINCT p.id, p.name, COUNT(cp.id) as people_count
+    FROM platoons p
+    JOIN collection_people cp ON cp.platoon_id = p.id
+    JOIN collection_schools s ON cp.school_id = s.id
+    WHERE s.id = ?
+    GROUP BY p.id
+    ORDER BY p.name
+  `;
+  db.all(sql, [schoolId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
 router.post('/collections/:collectionId/platoons', (req, res) => {
   const { collectionId } = req.params;
   const { name } = req.body;
@@ -33,7 +50,6 @@ router.post('/collections/:collectionId/platoons', (req, res) => {
   });
 });
 
-// Редактировать название взвода
 router.put('/platoons/:platoonId', (req, res) => {
   const { platoonId } = req.params;
   const { name } = req.body;
@@ -45,7 +61,6 @@ router.put('/platoons/:platoonId', (req, res) => {
   });
 });
 
-// Удалить взвод (сброс platoon_id у участников)
 router.delete('/platoons/:platoonId', (req, res) => {
   const { platoonId } = req.params;
   db.run('UPDATE collection_people SET platoon_id = NULL WHERE platoon_id = ?', [platoonId], (err) => {
@@ -57,7 +72,6 @@ router.delete('/platoons/:platoonId', (req, res) => {
   });
 });
 
-// Получить всех участников сбора с их школами и текущим взводом
 router.get('/collections/:collectionId/participants', (req, res) => {
   const { collectionId } = req.params;
   const sql = `
@@ -73,7 +87,6 @@ router.get('/collections/:collectionId/participants', (req, res) => {
   });
 });
 
-// Назначить участнику взвод
 router.put('/people/:personId/platoon', (req, res) => {
   const { personId } = req.params;
   const { platoon_id } = req.body;
@@ -83,7 +96,6 @@ router.put('/people/:personId/platoon', (req, res) => {
   });
 });
 
-// Массовое добавление в взвод
 router.post('/people/bulk-add', (req, res) => {
   const { personIds, platoonId } = req.body;
   if (!personIds || !personIds.length || !platoonId) {
@@ -96,7 +108,6 @@ router.post('/people/bulk-add', (req, res) => {
   });
 });
 
-// Массовое удаление из взвода
 router.post('/people/bulk-remove', (req, res) => {
   const { personIds } = req.body;
   if (!personIds || !personIds.length) {
@@ -109,14 +120,12 @@ router.post('/people/bulk-remove', (req, res) => {
   });
 });
 
-// Автоматическое распределение (с проверкой наличия взводов)
 router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
   const { collectionId } = req.params;
   let { maxPerPlatoon, targetPlatoonsCount } = req.body;
   maxPerPlatoon = parseInt(maxPerPlatoon) || 31;
   targetPlatoonsCount = parseInt(targetPlatoonsCount) || null;
 
-  // Проверяем, есть ли уже взвода в этом сборе
   const existingPlatoons = await new Promise((resolve, reject) => {
     db.get('SELECT COUNT(*) as count FROM platoons WHERE collection_id = ?', [collectionId], (err, row) => {
       if (err) reject(err);
@@ -128,7 +137,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
   }
 
   try {
-    // Получаем всех участников сбора с их школами
     const participants = await new Promise((resolve, reject) => {
       db.all(`
         SELECT p.id, p.full_name, s.edu_org as school
@@ -145,7 +153,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       return res.status(400).json({ error: 'В сборе нет участников' });
     }
 
-    // Группируем по школам
     const schoolGroups = {};
     for (const p of participants) {
       if (!schoolGroups[p.school]) schoolGroups[p.school] = [];
@@ -155,7 +162,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
     const minPerPlatoon = 10;
     let platoonsToCreate = [];
 
-    // Сначала обрабатываем большие школы (более maxPerPlatoon)
     for (const [school, people] of Object.entries(schoolGroups)) {
       let remaining = [...people];
       if (remaining.length > maxPerPlatoon) {
@@ -174,7 +180,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       }
     }
 
-    // Объединяем маленькие группы
     const smallGroups = platoonsToCreate.filter(g => g.people.length < minPerPlatoon);
     const largeGroups = platoonsToCreate.filter(g => g.people.length >= minPerPlatoon);
     let finalPlatoons = [...largeGroups];
@@ -190,7 +195,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
     }
     if (tempPlatoon.people.length) finalPlatoons.push({ school: tempPlatoon.school, people: [...tempPlatoon.people] });
 
-    // Если задано целевое количество взводов, перераспределяем равномерно
     if (targetPlatoonsCount && targetPlatoonsCount > 0) {
       const allPeople = participants.map(p => p);
       const total = allPeople.length;
@@ -211,7 +215,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       }
     }
 
-    // Удаляем старые взвода и сбрасываем platoon_id
     await new Promise((resolve, reject) => {
       db.run('DELETE FROM platoons WHERE collection_id = ?', [collectionId], (err) => {
         if (err) reject(err);
@@ -225,7 +228,6 @@ router.post('/collections/:collectionId/auto-distribute', async (req, res) => {
       });
     });
 
-    // Создаём новые взвода и распределяем участников
     for (let i = 0; i < finalPlatoons.length; i++) {
       const platoon = finalPlatoons[i];
       const platoonName = `ВЗВОД ${i+1}`;

@@ -171,6 +171,168 @@ function showPlatoonSelector(platoons) {
   };
 }
 
+// ========== НОВАЯ МОДАЛКА ДЛЯ ВРЕМЕННОГО ЖУРНАЛА (выбор школы и взвода) ==========
+let tempJournalSchoolSelectModal = null;
+let tempJournalSchools = [];
+let tempJournalPlatoons = [];
+let tempJournalSelectedSchoolId = null;
+
+function createTempJournalSchoolModal() {
+  if (tempJournalSchoolSelectModal) return tempJournalSchoolSelectModal;
+  const modal = document.createElement('div');
+  modal.id = 'tempJournalSchoolModal';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2><i class="fas fa-school"></i> Выберите школу</h2>
+        <button class="close-modal" id="closeTempJournalSchoolModalBtn">&times;</button>
+      </div>
+      <div style="padding: 16px 24px;">
+        <p style="margin-bottom: 16px;">Для выбранных сборов доступны следующие школы:</p>
+        <div id="tempJournalSchoolsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button id="cancelTempJournalSchoolBtn" class="btn cancel">Отмена</button>
+          <button id="confirmTempJournalSchoolBtn" class="btn add">Далее</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  tempJournalSchoolSelectModal = modal;
+  return modal;
+}
+
+function showTempJournalSchoolSelector(schools) {
+  const modal = createTempJournalSchoolModal();
+  const schoolsListDiv = document.getElementById('tempJournalSchoolsList');
+  const closeBtn = document.getElementById('closeTempJournalSchoolModalBtn');
+  const cancelBtn = document.getElementById('cancelTempJournalSchoolBtn');
+  const confirmBtn = document.getElementById('confirmTempJournalSchoolBtn');
+  
+  tempJournalSchools = schools;
+  schoolsListDiv.innerHTML = schools.map(school => `
+    <label style="display: block; margin-bottom: 12px; cursor: pointer;">
+      <input type="radio" name="tempJournalSchool" value="${school.id}"> 
+      ${window.escapeHtml(school.edu_org)} (${school.people_count || 0} чел.)
+    </label>
+  `).join('');
+  
+  modal.style.display = 'flex';
+  
+  const closeModal = () => modal.style.display = 'none';
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+  
+  confirmBtn.onclick = async () => {
+    const selectedRadio = document.querySelector('#tempJournalSchoolsList input[type="radio"]:checked');
+    if (!selectedRadio) {
+      alert('Выберите школу');
+      return;
+    }
+    tempJournalSelectedSchoolId = parseInt(selectedRadio.value);
+    modal.style.display = 'none';
+    // Загружаем взвода для выбранной школы
+    await loadPlatoonsForSchool(tempJournalSelectedSchoolId);
+    showTempJournalPlatoonSelector(tempJournalPlatoons);
+  };
+}
+
+function createTempJournalPlatoonModal() {
+  // можно переиспользовать platoonSelectModal, но для удобства создадим отдельную
+  if (document.getElementById('tempJournalPlatoonModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'tempJournalPlatoonModal';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2><i class="fas fa-users"></i> Выберите взвод</h2>
+        <button class="close-modal" id="closeTempJournalPlatoonModalBtn">&times;</button>
+      </div>
+      <div style="padding: 16px 24px;">
+        <p style="margin-bottom: 16px;">Для выбранной школы доступны следующие взвода:</p>
+        <div id="tempJournalPlatoonsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button id="cancelTempJournalPlatoonBtn" class="btn cancel">Отмена</button>
+          <button id="confirmTempJournalPlatoonBtn" class="btn add">Сформировать</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function loadPlatoonsForSchool(schoolId) {
+  try {
+    const resp = await fetch(`/api/schools/${schoolId}/platoons`);
+    if (!resp.ok) throw new Error();
+    tempJournalPlatoons = await resp.json();
+  } catch (err) {
+    console.error(err);
+    tempJournalPlatoons = [];
+  }
+}
+
+function showTempJournalPlatoonSelector(platoons) {
+  createTempJournalPlatoonModal();
+  const modal = document.getElementById('tempJournalPlatoonModal');
+  const platoonsListDiv = document.getElementById('tempJournalPlatoonsList');
+  const closeBtn = document.getElementById('closeTempJournalPlatoonModalBtn');
+  const cancelBtn = document.getElementById('cancelTempJournalPlatoonBtn');
+  const confirmBtn = document.getElementById('confirmTempJournalPlatoonBtn');
+  
+  if (!platoons.length) {
+    platoonsListDiv.innerHTML = '<p style="color:red;">В этой школе нет взводов</p>';
+  } else {
+    platoonsListDiv.innerHTML = platoons.map(platoon => `
+      <label style="display: block; margin-bottom: 12px; cursor: pointer;">
+        <input type="radio" name="tempJournalPlatoon" value="${platoon.id}"> 
+        ${window.escapeHtml(platoon.name)} (${platoon.people_count || 0} чел.)
+      </label>
+    `).join('');
+  }
+  
+  modal.style.display = 'flex';
+  const closeModal = () => modal.style.display = 'none';
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+  
+  confirmBtn.onclick = async () => {
+    const selectedRadio = document.querySelector('#tempJournalPlatoonsList input[type="radio"]:checked');
+    if (!selectedRadio) {
+      alert('Выберите взвод');
+      return;
+    }
+    const platoonId = selectedRadio.value;
+    modal.style.display = 'none';
+    try {
+      const response = await fetch('/api/generate-vrem-jurnal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId: tempJournalSelectedSchoolId, platoonId })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Ошибка генерации');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Vremenny_jurnal_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Ошибка: ' + err.message);
+    }
+  };
+}
+
 // Основная функция отрисовки раздела Документы
 window.renderDocuments = function() {
   const html = `
@@ -179,6 +341,7 @@ window.renderDocuments = function() {
         <div class="doc-column-title">Контрактные документы</div>
         <div class="doc-buttons-list">
           <button class="doc-button" data-doc="Сводная ведомость">Сводная ведомость</button>
+          <button class="doc-button" data-doc="Временный журнал">Временный журнал</button>
         </div>
       </div>
       <div class="doc-column">
@@ -198,6 +361,8 @@ window.renderDocuments = function() {
         await handleSvodnaya();
       } else if (currentDocType === 'Физо (100м)') {
         await handleFizo();
+      } else if (currentDocType === 'Временный журнал') {
+        await handleVremJournal();
       }
     });
   });
@@ -261,7 +426,7 @@ async function handleSvodnaya() {
   }
 }
 
-// Логика для Физо (100м) – выбор сборов → выбор взвода → генерация Word
+// Логика для Физо (100м) – выбор сборов → выбор взвода → генерация Excel
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');
@@ -287,7 +452,6 @@ async function handleFizo() {
         return;
       }
       window.selectCollectionsModal.style.display = 'none';
-      // Получаем взвода для выбранного сбора (берём первый выбранный сбор, можно расширить)
       const collectionId = selectedCollectionIds[0];
       try {
         const platoonsResp = await fetch(`/api/collections/${collectionId}/platoons`);
@@ -299,6 +463,64 @@ async function handleFizo() {
         showPlatoonSelector(platoons);
       } catch (err) {
         alert('Ошибка загрузки взводов: ' + err.message);
+      }
+      generateDocBtn.onclick = oldHandler;
+    };
+    
+    const restoreHandler = () => {
+      generateDocBtn.onclick = oldHandler;
+    };
+    closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
+    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });
+    window.selectCollectionsModal.addEventListener('click', (e) => {
+      if (e.target === window.selectCollectionsModal) restoreHandler();
+    }, { once: true });
+    
+  } catch (err) {
+    alert('Ошибка загрузки сборов');
+  }
+}
+
+// Новая логика для Временного журнала: выбор сборов → выбор школы → выбор взвода → генерация
+async function handleVremJournal() {
+  try {
+    const resp = await fetch('/api/collections');
+    const collections = await resp.json();
+    if (!collections.length) {
+      alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
+      return;
+    }
+    collectionsChecklistDiv.innerHTML = collections.map(col => `
+      <label style="display: block; margin-bottom: 12px; cursor: pointer;">
+        <input type="checkbox" value="${col.id}"> 
+        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.people_count || 0} чел.)
+      </label>
+    `).join('');
+    window.selectCollectionsModal.style.display = 'flex';
+    
+    const oldHandler = generateDocBtn.onclick;
+    generateDocBtn.onclick = async () => {
+      const checkboxes = collectionsChecklistDiv.querySelectorAll('input[type="checkbox"]:checked');
+      selectedCollectionIds = Array.from(checkboxes).map(cb => cb.value);
+      if (selectedCollectionIds.length === 0) {
+        alert('Выберите хотя бы один сбор');
+        return;
+      }
+      window.selectCollectionsModal.style.display = 'none';
+      try {
+        const schoolsResp = await fetch('/api/schools/by-collections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collectionIds: selectedCollectionIds })
+        });
+        const schools = await schoolsResp.json();
+        if (!schools.length) {
+          alert('В выбранных сборах нет школ с участниками');
+          return;
+        }
+        showTempJournalSchoolSelector(schools);
+      } catch (err) {
+        alert('Ошибка загрузки школ: ' + err.message);
       }
       generateDocBtn.onclick = oldHandler;
     };
