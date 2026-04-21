@@ -368,3 +368,36 @@ body.dark-theme .platoon-badge.unassigned {
     min-width: 600px;
   }
 }
+/* Кнопки редактирования и удаления в модалке школ */
+.edit-school-btn,
+.delete-school-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+.edit-school-btn {
+  color: #3b82f6;
+}
+.edit-school-btn:hover {
+  background: #dbeafe;
+}
+.delete-school-btn {
+  color: #ef4444;
+}
+.delete-school-btn:hover {
+  background: #fee2e2;
+}
+/* Тёмная тема */
+body.dark-theme .edit-school-btn {
+  color: #60a5fa;
+}
+body.dark-theme .edit-school-btn:hover {
+  background: #1e40af;
+}
+body.dark-theme .delete-school-btn:hover {
+  background: #7f1a1a;
+}

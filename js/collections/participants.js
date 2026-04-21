@@ -89,8 +89,15 @@ function filterPeople() {
   const searchTerm = document.getElementById('searchPersonInput')?.value.trim().toLowerCase() || '';
   let filtered = [...allPeople];
   if (searchTerm) filtered = filtered.filter(p => p.full_name.toLowerCase().includes(searchTerm));
-  if (currentSort === 'name') filtered.sort(window.collectionsHelpers.sortPeopleByName);
-  else filtered.sort(window.collectionsHelpers.sortPeopleByPlatoon);
+  if (currentSort === 'name') filtered.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
+  else filtered.sort((a, b) => {
+    const getOrder = (p) => {
+      if (!p.platoon_name) return 0;
+      const match = p.platoon_name.match(/\d+/);
+      return match ? parseInt(match[0]) : 999;
+    };
+    return getOrder(a) - getOrder(b);
+  });
   renderPeopleTable(filtered);
 }
 
@@ -107,15 +114,15 @@ function renderPeopleTable(people) {
       : `<span class="platoon-badge unassigned">Не распределён</span>`;
     return `
       <tr data-person-id="${p.id}">
-        <td style="text-align: center;">${idx+1}<\/td>
-        <td>${window.escapeHtml(p.full_name)}<\/td>
-        <td>${platoonStatus}<\/td>
-        <td>${window.escapeHtml(p.organization)}<\/td>
+        <td style="text-align: center;">${idx+1}</td>
+        <td>${window.escapeHtml(p.full_name)}</td>
+        <td>${platoonStatus}</td>
+        <td>${window.escapeHtml(p.organization)}</td>
         <td style="text-align: center;">
-          <button class="edit-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-edit"><\/i><\/button>
-          <button class="delete-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-times-circle"><\/i><\/button>
-        <\/td>
-      <\/tr>
+          <button class="edit-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-edit"></i></button>
+          <button class="delete-person-btn" data-person-id="${p.id}" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-times-circle"></i></button>
+        </td>
+      </tr>
     `;
   }).join('');
   attachPersonEvents();
@@ -142,11 +149,15 @@ function attachPersonEvents() {
       const newName = prompt('Введите новое ФИО:', currentName);
       if (newName && newName.trim() && newName.trim() !== currentName) {
         try {
-          await fetch(`/api/collection-people/${personId}`, {
+          const response = await fetch(`/api/collection-people/${personId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ full_name: newName.trim() })
           });
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Ошибка сервера');
+          }
           await loadPeopleForSchool(currentSchoolId);
           if (window.loadCollections) window.loadCollections();
         } catch (err) { alert('Ошибка редактирования: ' + err.message); }
@@ -156,61 +167,48 @@ function attachPersonEvents() {
 }
 
 // Добавление человека
-const addPersonBtn = document.getElementById('addPersonBtn');
-if (addPersonBtn) {
-  addPersonBtn.addEventListener('click', () => {
-    const addForm = document.getElementById('addPersonForm');
-    if (addForm) addForm.style.display = 'block';
-    if (addPersonBtn) addPersonBtn.style.display = 'none';
-    const nameInput = document.getElementById('newPersonName');
-    if (nameInput) nameInput.value = '';
-  });
-}
-const cancelAddPersonBtn = document.getElementById('cancelAddPersonBtn');
-if (cancelAddPersonBtn) {
-  cancelAddPersonBtn.addEventListener('click', () => {
+document.getElementById('addPersonBtn')?.addEventListener('click', () => {
+  const addForm = document.getElementById('addPersonForm');
+  if (addForm) addForm.style.display = 'block';
+  const addBtn = document.getElementById('addPersonBtn');
+  if (addBtn) addBtn.style.display = 'none';
+  const nameInput = document.getElementById('newPersonName');
+  if (nameInput) nameInput.value = '';
+});
+document.getElementById('cancelAddPersonBtn')?.addEventListener('click', () => {
+  const addForm = document.getElementById('addPersonForm');
+  if (addForm) addForm.style.display = 'none';
+  const addBtn = document.getElementById('addPersonBtn');
+  if (addBtn) addBtn.style.display = 'block';
+});
+document.getElementById('savePersonBtn')?.addEventListener('click', async () => {
+  const name = document.getElementById('newPersonName')?.value.trim();
+  if (!name) { alert('Заполните ФИО'); return; }
+  try {
+    await fetch(`/api/schools/${currentSchoolId}/people`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: name, organization: currentSchoolName })
+    });
+    await loadPeopleForSchool(currentSchoolId);
+    if (window.loadCollections) window.loadCollections();
     const addForm = document.getElementById('addPersonForm');
     if (addForm) addForm.style.display = 'none';
     const addBtn = document.getElementById('addPersonBtn');
     if (addBtn) addBtn.style.display = 'block';
-  });
-}
-const savePersonBtn = document.getElementById('savePersonBtn');
-if (savePersonBtn) {
-  savePersonBtn.addEventListener('click', async () => {
-    const name = document.getElementById('newPersonName')?.value.trim();
-    if (!name) { alert('Заполните ФИО'); return; }
-    try {
-      await fetch(`/api/schools/${currentSchoolId}/people`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: name, organization: currentSchoolName })
-      });
-      await loadPeopleForSchool(currentSchoolId);
-      if (window.loadCollections) window.loadCollections();
-      const addForm = document.getElementById('addPersonForm');
-      if (addForm) addForm.style.display = 'none';
-      const addBtn = document.getElementById('addPersonBtn');
-      if (addBtn) addBtn.style.display = 'block';
-      const nameInput = document.getElementById('newPersonName');
-      if (nameInput) nameInput.value = '';
-    } catch (err) { alert('Ошибка добавления: ' + err.message); }
-  });
-}
-const searchPersonInput = document.getElementById('searchPersonInput');
-if (searchPersonInput) searchPersonInput.addEventListener('input', filterPeople);
-const closePeopleModalBtn = document.getElementById('closePeopleModalBtn');
-if (closePeopleModalBtn) {
-  closePeopleModalBtn.addEventListener('click', () => {
-    const modal = document.getElementById('peopleModal');
-    if (modal) modal.style.display = 'none';
-  });
-}
-const peopleModalElem = document.getElementById('peopleModal');
-if (peopleModalElem) {
-  peopleModalElem.addEventListener('click', (e) => {
-    if (e.target === peopleModalElem) peopleModalElem.style.display = 'none';
-  });
-}
+    const nameInput = document.getElementById('newPersonName');
+    if (nameInput) nameInput.value = '';
+  } catch (err) { alert('Ошибка добавления: ' + err.message); }
+});
+document.getElementById('searchPersonInput')?.addEventListener('input', filterPeople);
+document.getElementById('closePeopleModalBtn')?.addEventListener('click', () => {
+  const modal = document.getElementById('peopleModal');
+  if (modal) modal.style.display = 'none';
+});
+document.getElementById('peopleModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('peopleModal')) {
+    document.getElementById('peopleModal').style.display = 'none';
+  }
+});
 
 window.openPeopleModal = openPeopleModal;

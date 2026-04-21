@@ -1,60 +1,299 @@
-/* Стили для разделов "Занятия" и "Оценки" */
-.topics-grid, .scores-grid {
+/* ========== РАЗДЕЛ ОЦЕНКИ ========== */
+.scores-layout {
+  display: flex;
+  gap: 24px;
+}
+
+/* Левая панель */
+.scores-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-.subject-card, .scores-subject-card {
-  background: white;
-  border-radius: 24px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.05);
-  padding: 20px;
+
+.scores-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.dark-theme .subject-card, .dark-theme .scores-subject-card {
-  background: #1e293b;
+
+.filter-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
 }
-.subject-title, .scores-subject-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e2e8f0;
-}
-.topics-table, .scores-table {
+
+.filter-group select {
   width: 100%;
-  border-collapse: collapse;
 }
-.topics-table th, .topics-table td, .scores-table th, .scores-table td {
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
+
+.scores-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.topics-table th, .scores-table th {
-  background: #f8fafc;
+
+.action-group {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+}
+
+.action-group-title {
   font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #1e293b;
 }
-.dark-theme .topics-table th, .dark-theme .scores-table th {
-  background: #0f172a;
-  color: #e2e8f0;
-  border-bottom-color: #334155;
-}
-.topic-score, .final-score-select {
-  padding: 4px 8px;
-  border-radius: 12px;
-  border: 1px solid #ccc;
-}
-.auto-calc-btn {
-  margin-left: 12px;
-  padding: 4px 12px;
-  border-radius: 20px;
+
+.action-btn {
+  width: 100%;
+  margin-bottom: 8px;
+  justify-content: center;
   background: #3b82f6;
   color: white;
-  border: none;
-  cursor: pointer;
 }
-.final-score-row {
-  margin-top: 16px;
+.action-btn.danger {
+  background: #ef4444;
+}
+.action-btn.danger:hover {
+  background: #dc2626;
+}
+.action-btn:hover {
+  filter: brightness(0.95);
+}
+
+/* Цвета кнопок массовых операций */
+.action-btn.grade-5 {
+  background: #22c55e;
+}
+.action-btn.grade-5:hover {
+  background: #16a34a;
+}
+.action-btn.grade-4 {
+  background: #eab308;
+  color: #1e293b;
+}
+.action-btn.grade-4:hover {
+  background: #ca8a04;
+  color: white;
+}
+.action-btn.grade-3 {
+  background: #ef4444;
+}
+.action-btn.grade-3:hover {
+  background: #dc2626;
+}
+
+/* Правая область – таблица */
+.scores-main {
+  flex: 1;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 20px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scores-search {
+  display: flex;
   gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px 14px;
+  border-radius: 40px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.subject-select {
+  padding: 8px 14px;
+  border-radius: 40px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+}
+
+.scores-table-container {
+  overflow-x: auto;
+}
+
+.scores-table-wrapper {
+  overflow-x: auto;
+}
+
+.scores-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 600px;
+}
+
+.scores-table th,
+.scores-table td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.scores-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 0.75rem;
+  position: sticky;
+  top: 0;
+}
+
+.student-name {
+  text-align: left;
+  font-weight: 500;
+  background: #fefce8;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.school-name {
+  white-space: nowrap;
+}
+
+.actions-cell {
+  width: 100px;
+  text-align: center;
+}
+
+.student-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+.student-grade-btn {
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.student-grade-btn.grade-5 {
+  background: #22c55e;
+  color: white;
+}
+.student-grade-btn.grade-4 {
+  background: #eab308;
+  color: #1e293b;
+}
+.student-grade-btn.grade-3 {
+  background: #ef4444;
+  color: white;
+}
+.student-grade-btn:hover {
+  transform: scale(1.05);
+}
+
+.score-cell select {
+  width: 55px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.final-score {
+  font-weight: 600;
+  background: #e0f2fe;
+  font-size: 0.85rem;
+}
+
+/* Цвета ячеек с оценками */
+.score-cell.score-5 {
+  background-color: #22c55e20;
+}
+.score-cell.score-4 {
+  background-color: #eab30820;
+}
+.score-cell.score-3 {
+  background-color: #ef444420;
+}
+
+/* Тёмная тема */
+body.dark-theme .scores-sidebar,
+body.dark-theme .scores-main {
+  background: #1e293b;
+}
+body.dark-theme .action-group-title {
+  color: #e2e8f0;
+}
+body.dark-theme .action-group {
+  border-top-color: #334155;
+}
+body.dark-theme .scores-table th {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+body.dark-theme .scores-table td {
+  border-color: #334155;
+  color: #cbd5e1;
+}
+body.dark-theme .student-name {
+  background: #334155;
+}
+body.dark-theme .final-score {
+  background: #1e3a5f;
+}
+body.dark-theme .score-cell select {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+body.dark-theme .search-input,
+body.dark-theme .subject-select {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+body.dark-theme .student-grade-btn.grade-4 {
+  color: white;
+}
+/* Добавить в конец файла или обновить */
+.number-cell {
+  width: 40px;
+  text-align: center;
+  font-weight: 500;
+  background: #f1f5f9;
+}
+body.dark-theme .number-cell {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+/* Стили для кнопки "Всем 3" – серый цвет */
+.action-btn.grade-3 {
+  background: #9ca3af;
+  color: #1e293b;
+}
+.action-btn.grade-3:hover {
+  background: #6b7280;
+  color: white;
 }

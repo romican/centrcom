@@ -6,7 +6,6 @@ let topics_topics = [];
 let topics_weekDays = [];
 
 window.renderTopics = async function() {
-  console.log('renderTopics вызван');
   window.contentBody.innerHTML = `
     <div class="topics-layout">
       <div class="topics-sidebar">
@@ -23,22 +22,18 @@ window.renderTopics = async function() {
         <div id="topicsContent">Выберите сбор</div>
       </div>
       <div class="topics-schedule-panel">
-        <h3>Расписание по дням</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3>Расписание по дням</h3>
+          <button id="openFullScheduleBtn" class="btn-icon" title="Полное расписание"><i class="fas fa-calendar-alt"></i></button>
+        </div>
         <div id="scheduleContent">Загрузка...</div>
       </div>
     </div>
   `;
 
-  // Даём браузеру время на отрисовку DOM
-  await new Promise(resolve => setTimeout(resolve, 0));
-
   const select = document.getElementById('topicsCollectionSelect');
-  if (!select) {
-    console.error('Элемент topicsCollectionSelect не найден');
-    return;
-  }
+  if (!select) return;
 
-  // Загрузка списка сборов
   const resp = await fetch('/api/collections');
   const collections = await resp.json();
   if (collections.length === 0) {
@@ -48,7 +43,6 @@ window.renderTopics = async function() {
   select.innerHTML = '<option value="">-- Выберите сбор --</option>' +
     collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
   
-  // Автовыбор сбора, в который попадает сегодняшняя дата
   const today = new Date().toISOString().slice(0,10);
   let autoSelectedId = null;
   for (const c of collections) {
@@ -68,17 +62,13 @@ window.renderTopics = async function() {
     if (topics_currentCollectionId) {
       await loadTopicsData();
     } else {
-      const contentDiv = document.getElementById('topicsContent');
-      if (contentDiv) contentDiv.innerHTML = '<p style="text-align:center; padding:40px;">Выберите сбор</p>';
-      const scheduleDiv = document.getElementById('scheduleContent');
-      if (scheduleDiv) scheduleDiv.innerHTML = 'Выберите сбор';
+      document.getElementById('topicsContent').innerHTML = '<p style="text-align:center; padding:40px;">Выберите сбор</p>';
+      document.getElementById('scheduleContent').innerHTML = 'Выберите сбор';
     }
   });
 
-  const addBtn = document.getElementById('addTopicBtn');
-  if (addBtn) addBtn.addEventListener('click', () => openAddTopicModal());
-  const autoBtn = document.getElementById('autoTopicsBtn');
-  if (autoBtn) autoBtn.addEventListener('click', async () => {
+  document.getElementById('addTopicBtn').addEventListener('click', () => openAddTopicModal());
+  document.getElementById('autoTopicsBtn').addEventListener('click', async () => {
     if (!topics_currentCollectionId) {
       alert('Сначала выберите сбор');
       return;
@@ -86,6 +76,8 @@ window.renderTopics = async function() {
     if (!confirm('Автоматическое копирование тем из предыдущего сбора (по дням недели) заменит все текущие темы. Продолжить?')) return;
     await autoCopyTopicsFromPreviousCollection();
   });
+
+  document.getElementById('openFullScheduleBtn').addEventListener('click', () => openFullScheduleModal());
 };
 
 async function loadTopicsData() {
@@ -107,10 +99,8 @@ async function loadTopicsData() {
     renderSchedule();
   } catch (err) {
     console.error(err);
-    const contentDiv = document.getElementById('topicsContent');
-    if (contentDiv) contentDiv.innerHTML = '<p style="color:red;">Ошибка загрузки тем</p>';
-    const scheduleDiv = document.getElementById('scheduleContent');
-    if (scheduleDiv) scheduleDiv.innerHTML = '<p style="color:red;">Ошибка загрузки</p>';
+    document.getElementById('topicsContent').innerHTML = '<p style="color:red;">Ошибка загрузки тем</p>';
+    document.getElementById('scheduleContent').innerHTML = '<p style="color:red;">Ошибка загрузки</p>';
   }
 }
 
@@ -163,29 +153,16 @@ function renderTopicsTable() {
             <td>
               <button class="edit-topic-btn" data-id="${topic.id}"><i class="fas fa-edit"></i></button>
               <button class="delete-topic-btn" data-id="${topic.id}"><i class="fas fa-trash-alt"></i></button>
-             </td>
-           </tr>
+              </td>
+          <tr>
         `;
       });
     }
   });
-  html += `</tbody></table></div>`;
+  html += `</tbody>
+      </table>
+    </div>`;
   container.innerHTML = html;
-
-  document.querySelectorAll('.edit-topic-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const topicId = btn.getAttribute('data-id');
-      openEditTopicModal(topicId);
-    });
-  });
-  document.querySelectorAll('.delete-topic-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Удалить тему?')) return;
-      const topicId = btn.getAttribute('data-id');
-      await fetch(`/api/topics/${topicId}`, { method: 'DELETE' });
-      await loadTopicsData();
-    });
-  });
 }
 
 function renderSchedule() {
@@ -202,12 +179,18 @@ function renderSchedule() {
       <div class="schedule-day">
         <div class="schedule-day-header">${day.display}</div>
         <div class="schedule-day-topics">
-          ${dayTopics.length ? dayTopics.map(t => `<div class="schedule-topic"><strong>${window.escapeHtml(t.subject_name)}</strong>: ${window.escapeHtml(t.name)}</div>`).join('') : '<div class="schedule-empty">Нет занятий</div>'}
+          ${dayTopics.length ? dayTopics.map(t => `<div class="schedule-topic"><strong>${window.escapeHtml(t.subject_name)}</strong>: ${truncateText(t.name, 70)}</div>`).join('') : '<div class="schedule-empty">Нет занятий</div>'}
         </div>
       </div>
     `;
   }
   scheduleDiv.innerHTML = html;
+}
+
+function truncateText(text, maxLength) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 
 async function openAddTopicModal() {
@@ -275,6 +258,10 @@ async function openAddTopicModal() {
 async function openEditTopicModal(topicId) {
   const resp = await fetch(`/api/topics/${topicId}`);
   const topic = await resp.json();
+  if (!topic) {
+    alert('Тема не найдена');
+    return;
+  }
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.innerHTML = `
@@ -333,34 +320,51 @@ async function openEditTopicModal(topicId) {
 }
 
 async function autoCopyTopicsFromPreviousCollection() {
+  console.log('autoCopyTopicsFromPreviousCollection начал работу');
   const collectionsResp = await fetch('/api/collections');
   const allCollections = await collectionsResp.json();
   const currentCollection = allCollections.find(c => c.id == topics_currentCollectionId);
-  if (!currentCollection) return;
-  const previousCollections = allCollections.filter(c => c.date_end < currentCollection.date_start).sort((a,b) => b.date_end - a.date_end);
-  if (!previousCollections.length) {
-    alert('Нет предыдущих сборов для копирования');
+  if (!currentCollection) {
+    console.error('Текущий сбор не найден');
     return;
   }
+  console.log('Текущий сбор:', currentCollection);
+  
+  const previousCollections = allCollections.filter(c => c.date_end < currentCollection.date_start);
+  if (previousCollections.length === 0) {
+    alert('Нет предыдущих сборов для копирования');
+    console.log('Нет сборов, заканчивающихся раньше', currentCollection.date_start);
+    return;
+  }
+  previousCollections.sort((a,b) => b.date_end.localeCompare(a.date_end));
   const previousCollection = previousCollections[0];
+  console.log('Предыдущий сбор выбран:', previousCollection);
+  
   const prevTopicsResp = await fetch(`/api/topics/${previousCollection.id}`);
   const prevData = await prevTopicsResp.json();
   const prevTopics = prevData.topics;
+  console.log('Темы в предыдущем сборе:', prevTopics);
   if (!prevTopics.length) {
     alert('В предыдущем сборе нет тем');
     return;
   }
+  
   for (const topic of topics_topics) {
     await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
   }
+  console.log('Текущие темы удалены');
+  
   const weekdaysMap = {};
   for (const day of topics_weekDays) {
-    weekdaysMap[day.dayName] = day.date;
+    weekdaysMap[day.dayName.toLowerCase()] = day.date;
   }
+  console.log('Сопоставление дней недели (lowercase):', weekdaysMap);
+  
+  let copiedCount = 0;
   for (const topic of prevTopics) {
     const prevDate = topic.date;
     if (!prevDate) continue;
-    const prevDayName = new Date(prevDate).toLocaleDateString('ru-RU', { weekday: 'long' });
+    const prevDayName = new Date(prevDate).toLocaleDateString('ru-RU', { weekday: 'long' }).toLowerCase();
     const targetDate = weekdaysMap[prevDayName];
     if (targetDate) {
       await fetch(`/api/topics/${topics_currentCollectionId}`, {
@@ -372,8 +376,79 @@ async function autoCopyTopicsFromPreviousCollection() {
           date: targetDate
         })
       });
+      copiedCount++;
+    } else {
+      console.warn(`Не найден день недели ${prevDayName} в текущем сборе для темы ${topic.name}`);
     }
   }
+  console.log(`Скопировано тем: ${copiedCount}`);
   await loadTopicsData();
-  alert('Темы скопированы из предыдущего сбора');
+  alert(`Темы скопированы из предыдущего сбора. Скопировано ${copiedCount} тем.`);
+}
+
+function openFullScheduleModal() {
+  if (!topics_weekDays.length || !topics_topics.length) {
+    alert('Нет данных для отображения');
+    return;
+  }
+
+  const days = topics_weekDays;
+  const subjects = topics_subjects;
+  
+  // Строим карту: день -> предмет -> название темы
+  const dayTopicMap = {};
+  for (const day of days) {
+    dayTopicMap[day.date] = {};
+  }
+  for (const topic of topics_topics) {
+    if (topic.date && dayTopicMap[topic.date]) {
+      dayTopicMap[topic.date][topic.subject_id] = topic.name;
+    }
+  }
+
+  // Создаём таблицу в современном стиле (столбцы – дни, строки – предметы)
+  let html = '<div class="full-schedule-wrapper"><table class="full-schedule-table">';
+  html += '<thead><tr><th>Предмет</th>';
+  for (const day of days) {
+    html += `<th>${day.display}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  for (const subject of subjects) {
+    html += `<tr><td class="full-schedule-subject">${window.escapeHtml(subject.name)}</td>`;
+    for (const day of days) {
+      const topicName = dayTopicMap[day.date][subject.id];
+      html += `<td class="full-schedule-topic">${topicName ? window.escapeHtml(topicName) : '—'}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 90%; width: auto; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h2>Полное расписание</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div style="flex:1; overflow: auto; padding: 16px;">
+        ${html}
+      </div>
+      <div class="form-actions" style="padding: 16px 24px;">
+        <button id="fullSchedulePrintBtn" class="btn add">Печать</button>
+        <button id="fullScheduleCloseBtn" class="btn cancel">Отмена</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.style.display = 'flex';
+  const closeModal = () => modal.remove();
+  modal.querySelector('.close-modal').addEventListener('click', closeModal);
+  modal.querySelector('#fullScheduleCloseBtn').addEventListener('click', closeModal);
+  modal.querySelector('#fullSchedulePrintBtn').addEventListener('click', () => {
+    alert('Функция печати будет добавлена позже');
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
 }

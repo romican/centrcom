@@ -87,10 +87,12 @@ router.post('/collections/:id/schools', (req, res) => {
   if (!edu_org || !peopleList) {
     return res.status(400).json({ error: 'Название школы и список людей обязательны' });
   }
+
   const lines = peopleList.split(/\r?\n/).filter(l => l.trim().length > 0);
   if (lines.length === 0) {
     return res.status(400).json({ error: 'Список людей не должен быть пустым' });
   }
+
   db.run('BEGIN TRANSACTION');
   db.run(
     `INSERT INTO collection_schools (collection_id, edu_org, head_teacher) VALUES (?, ?, ?)`,
@@ -127,6 +129,7 @@ router.put('/schools/:schoolId', (req, res) => {
   const schoolId = req.params.schoolId;
   const { edu_org, head_teacher } = req.body;
   if (!edu_org) return res.status(400).json({ error: 'Название школы обязательно' });
+
   db.run('BEGIN TRANSACTION', (err) => {
     if (err) return res.status(500).json({ error: err.message });
     db.run(
@@ -193,6 +196,18 @@ router.delete('/collection-people/:personId', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (this.changes === 0) return res.status(404).json({ error: 'Участник не найден' });
     res.json({ message: 'Участник удалён' });
+  });
+});
+
+// ========== ДОБАВЛЕННЫЙ МАРШРУТ ДЛЯ РЕДАКТИРОВАНИЯ УЧАСТНИКА ==========
+router.put('/collection-people/:personId', (req, res) => {
+  const personId = req.params.personId;
+  const { full_name } = req.body;
+  if (!full_name) return res.status(400).json({ error: 'ФИО обязательно' });
+  db.run('UPDATE collection_people SET full_name = ? WHERE id = ?', [full_name, personId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Участник не найден' });
+    res.json({ message: 'ФИО обновлено' });
   });
 });
 

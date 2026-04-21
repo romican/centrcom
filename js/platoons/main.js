@@ -1,3 +1,4 @@
+// ========== ОСНОВНАЯ ЛОГИКА ВЗВОДОВ ==========
 let platoon_currentCollectionId = null;
 let platoon_currentPlatoonId = null;
 let platoon_allParticipants = [];
@@ -32,7 +33,7 @@ function renderPlatoonsSection() {
   `;
   window.contentBody.appendChild(container);
 
-  // Загрузка списка сборов
+  // Загрузка списка сборов с автовыбором текущего
   fetch('/api/collections')
     .then(res => res.json())
     .then(collections => {
@@ -43,7 +44,25 @@ function renderPlatoonsSection() {
         return;
       }
       select.innerHTML = '<option value="">-- Выберите сбор --</option>' +
-        collections.map(c => `<option value="${c.id}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
+        collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
+      
+      // Автовыбор сбора, в который попадает сегодняшняя дата
+      const today = new Date().toISOString().slice(0,10);
+      let autoSelectedId = null;
+      for (const c of collections) {
+        if (c.date_start <= today && c.date_end >= today) {
+          autoSelectedId = c.id;
+          break;
+        }
+      }
+      if (autoSelectedId) {
+        select.value = autoSelectedId;
+        platoon_currentCollectionId = autoSelectedId;
+        platoon_loadData();
+      } else {
+        platoon_clearUI();
+      }
+      
       select.addEventListener('change', (e) => {
         platoon_currentCollectionId = e.target.value;
         if (platoon_currentCollectionId) platoon_loadData();
