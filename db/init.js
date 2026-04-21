@@ -16,7 +16,7 @@ function initDb() {
       address TEXT NOT NULL
     )`);
 
-    // Сборы (без edu_org)
+    // Сборы
     db.run(`CREATE TABLE IF NOT EXISTS collections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date_start TEXT NOT NULL,
@@ -24,12 +24,12 @@ function initDb() {
       military_unit TEXT NOT NULL
     )`);
 
-    // Школы сборов – добавлена колонка leader
+    // Школы
     db.run(`CREATE TABLE IF NOT EXISTS collection_schools (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       collection_id INTEGER NOT NULL,
       edu_org TEXT NOT NULL,
-      leader TEXT,
+      head_teacher TEXT,
       FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
     )`);
 
@@ -69,6 +69,58 @@ function initDb() {
       amount REAL NOT NULL,
       our_order_number TEXT NOT NULL,
       payments TEXT
+    )`);
+
+    // ========== НОВЫЕ ТАБЛИЦЫ ==========
+    db.run(`CREATE TABLE IF NOT EXISTS subjects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    )`, (err) => {
+      if (!err) {
+        const subjects = [
+          'Строевая подготовка',
+          'Огневая подготовка',
+          'Радиационная, химическая и биологическая защита',
+          'Общевоинские уставы ВС РФ',
+          'Обеспечение безопасности военной службы',
+          'Военно-медицинская подготовка',
+          'Тактическая подготовка',
+          'Физическая подготовка'
+        ];
+        subjects.forEach(name => {
+          db.run(`INSERT OR IGNORE INTO subjects (name) VALUES (?)`, [name]);
+        });
+      }
+    });
+
+    db.run(`CREATE TABLE IF NOT EXISTS topics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      collection_id INTEGER NOT NULL,
+      subject_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      date TEXT,
+      FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+      FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL,
+      topic_id INTEGER NOT NULL,
+      score INTEGER CHECK (score BETWEEN 1 AND 5),
+      FOREIGN KEY (person_id) REFERENCES collection_people(id) ON DELETE CASCADE,
+      FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
+      UNIQUE(person_id, topic_id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS final_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL,
+      subject_id INTEGER NOT NULL,
+      score INTEGER CHECK (score BETWEEN 1 AND 5),
+      FOREIGN KEY (person_id) REFERENCES collection_people(id) ON DELETE CASCADE,
+      FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+      UNIQUE(person_id, subject_id)
     )`);
   });
 }

@@ -12,7 +12,7 @@ window.loadCollections = async function() {
 
 function renderCollections(collections) {
   if (!collections.length) {
-    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th><tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tr></tbody></table></div>`;
+    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</tbody></table></div>`;
     return;
   }
   let html = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody>`;
@@ -109,56 +109,75 @@ async function openEditCollectionModal(id) {
   } catch (err) { alert('Ошибка загрузки данных'); }
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ openSchoolsModal
 async function openSchoolsModal(collectionId) {
-  currentCollectionId = collectionId;
+  // Устанавливаем ID сбора в schools.js
+  if (typeof window.setCurrentCollectionId === 'function') {
+    window.setCurrentCollectionId(collectionId);
+  }
+  
   const collectionsResp = await fetch('/api/collections');
   const allCollections = await collectionsResp.json();
   const collection = allCollections.find(c => c.id == collectionId);
   if (collection) {
-    document.getElementById('schoolsInfo').innerHTML = `
-      <strong>Сбор:</strong> ${window.formatDate(collection.date_start)} — ${window.formatDate(collection.date_end)}<br>
-      <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}
-    `;
+    const schoolsInfoDiv = document.getElementById('schoolsInfo');
+    if (schoolsInfoDiv) {
+      schoolsInfoDiv.innerHTML = `
+        <strong>Сбор:</strong> ${window.formatDate(collection.date_start)} — ${window.formatDate(collection.date_end)}<br>
+        <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}
+      `;
+    }
   }
-  await window.loadSchools(collectionId);
-  document.getElementById('schoolsModal').style.display = 'flex';
-  document.getElementById('searchSchoolInput').value = '';
-  window.filterSchools();
+  if (window.loadSchools) {
+    await window.loadSchools(collectionId);
+  }
+  const schoolsModal = document.getElementById('schoolsModal');
+  if (schoolsModal) schoolsModal.style.display = 'flex';
+  const searchInput = document.getElementById('searchSchoolInput');
+  if (searchInput) searchInput.value = '';
+  if (window.filterSchools) window.filterSchools();
 }
 
 // Форма создания сбора
-document.getElementById('collectionForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const date_start = document.getElementById('colDateStart').value;
-  const date_end = document.getElementById('colDateEnd').value;
-  const military_unit = document.getElementById('militaryUnit').value.trim();
-  if (!date_start || !date_end || !military_unit) {
-    alert('Заполните даты и войсковую часть');
-    return;
-  }
-  if (date_start > date_end) {
-    alert('Дата заезда не может быть позже даты выезда');
-    return;
-  }
-  try {
-    const response = await fetch('/api/collections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date_start, date_end, military_unit })
-    });
-    if (!response.ok) throw new Error('Ошибка сервера');
-    document.getElementById('collectionModal').style.display = 'none';
-    window.loadCollections();
-  } catch (err) { alert('Ошибка добавления сбора: ' + err.message); }
-});
+const collectionForm = document.getElementById('collectionForm');
+if (collectionForm) {
+  collectionForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date_start = document.getElementById('colDateStart')?.value;
+    const date_end = document.getElementById('colDateEnd')?.value;
+    const military_unit = document.getElementById('militaryUnit')?.value.trim();
+    if (!date_start || !date_end || !military_unit) {
+      alert('Заполните даты и войсковую часть');
+      return;
+    }
+    if (date_start > date_end) {
+      alert('Дата заезда не может быть позже даты выезда');
+      return;
+    }
+    try {
+      const response = await fetch('/api/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_start, date_end, military_unit })
+      });
+      if (!response.ok) throw new Error('Ошибка сервера');
+      const modal = document.getElementById('collectionModal');
+      if (modal) modal.style.display = 'none';
+      window.loadCollections();
+    } catch (err) { alert('Ошибка добавления сбора: ' + err.message); }
+  });
+}
 
 window.openCollectionModal = function() {
-  document.getElementById('collectionModal').style.display = 'flex';
-  document.getElementById('collectionForm').reset();
+  const modal = document.getElementById('collectionModal');
+  if (modal) modal.style.display = 'flex';
+  const form = document.getElementById('collectionForm');
+  if (form) form.reset();
 };
 
 window.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('collectionModal')) document.getElementById('collectionModal').style.display = 'none';
+  const modal = document.getElementById('collectionModal');
+  if (modal && e.target === modal) modal.style.display = 'none';
 });
 
 window.loadCollections();

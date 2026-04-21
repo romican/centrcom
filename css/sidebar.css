@@ -147,7 +147,7 @@ body.dark-theme .nav-item.active {
   max-height: 0;
 }
 .submenu.show {
-  max-height: 100px; /* достаточно для одного пункта */
+  max-height: 200px; /* было 100px – увеличиваем до 200px */
 }
 .sub-item {
   padding-left: 48px !important;

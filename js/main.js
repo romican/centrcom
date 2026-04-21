@@ -85,15 +85,13 @@ window.switchSection = function(section) {
   const logisticsSubmenu = document.getElementById('logisticsSubmenu');
   const collectionsSubmenu = document.getElementById('collectionsSubmenu');
 
-  // Подменю логистики (показываем при выборе "Логистика" или "Документы (логистика)")
   if (section === 'buses' || section === 'logistics-docs') {
     if (logisticsSubmenu) logisticsSubmenu.classList.add('show');
   } else {
     if (logisticsSubmenu) logisticsSubmenu.classList.remove('show');
   }
 
-  // Подменю сборов (показываем при выборе "Сборы", "Взвода", "Документы (сборы)")
-  if (section === 'collections' || section === 'platoons' || section === 'documents') {
+  if (section === 'collections' || section === 'platoons' || section === 'documents' || section === 'topics' || section === 'scores') {
     if (collectionsSubmenu) collectionsSubmenu.classList.add('show');
   } else {
     if (collectionsSubmenu) collectionsSubmenu.classList.remove('show');
@@ -122,6 +120,14 @@ window.switchSection = function(section) {
     window.sectionTitle.innerText = 'Документы (сборы)';
     window.addButton.style.display = 'none';
     if (window.renderDocuments) window.renderDocuments();
+  } else if (section === 'topics') {
+    window.sectionTitle.innerText = 'Занятия';
+    window.addButton.style.display = 'none';
+    if (window.renderTopics) window.renderTopics();
+  } else if (section === 'scores') {
+    window.sectionTitle.innerText = 'Оценки';
+    window.addButton.style.display = 'none';
+    if (window.renderScores) window.renderScores();
   } else if (section === 'invoices') {
     window.sectionTitle.innerText = 'Счета';
     window.addButton.style.display = 'flex';
@@ -149,18 +155,20 @@ window.toggleBtn.addEventListener('click', () => {
   window.sidebar.classList.toggle('collapsed');
 });
 
-// Инициализация после полной загрузки страницы
+// Инициализация после полной загрузки страницы с задержкой
 window.addEventListener('load', function() {
-  const savedSection = localStorage.getItem('activeSection');
-  const validSections = ['buses', 'logistics-docs', 'collections', 'platoons', 'documents', 'invoices', 'employees'];
-  if (savedSection && validSections.includes(savedSection)) {
-    const activeNav = document.querySelector(`.nav-item[data-section="${savedSection}"]`);
-    if (activeNav) {
-      document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-      activeNav.classList.add('active');
+  setTimeout(() => {
+    const savedSection = localStorage.getItem('activeSection');
+    const validSections = ['buses', 'logistics-docs', 'collections', 'platoons', 'documents', 'topics', 'scores', 'invoices', 'employees'];
+    if (savedSection && validSections.includes(savedSection)) {
+      const activeNav = document.querySelector(`.nav-item[data-section="${savedSection}"]`);
+      if (activeNav) {
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+        activeNav.classList.add('active');
+      }
+      window.switchSection(savedSection);
+    } else {
+      window.switchSection('buses');
     }
-    window.switchSection(savedSection);
-  } else {
-    window.switchSection('buses');
-  }
+  }, 50); // небольшая задержка для гарантии
 });

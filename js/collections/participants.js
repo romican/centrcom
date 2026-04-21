@@ -4,7 +4,6 @@ let currentSchoolName = null;
 let allPeople = [];
 let currentSort = 'name';
 
-// Создаём модальное окно участников (один раз)
 if (!document.getElementById('peopleModal')) {
   const peopleModal = document.createElement('div');
   peopleModal.id = 'peopleModal';
@@ -57,23 +56,24 @@ async function openPeopleModal(schoolId, schoolName) {
   currentSchoolName = schoolName;
   const schoolInfo = (window.allSchools || []).find(s => s.id == schoolId);
   const headTeacherHtml = schoolInfo && schoolInfo.head_teacher ? `<br><strong>Руководитель сборов:</strong> ${window.escapeHtml(schoolInfo.head_teacher)}` : '';
-  document.getElementById('peopleInfo').innerHTML = `<strong>Школа:</strong> ${window.escapeHtml(schoolName)}${headTeacherHtml}`;
+  const infoDiv = document.getElementById('peopleInfo');
+  if (infoDiv) infoDiv.innerHTML = `<strong>Школа:</strong> ${window.escapeHtml(schoolName)}${headTeacherHtml}`;
   await loadPeopleForSchool(schoolId);
-  document.getElementById('peopleModal').style.display = 'flex';
-  document.getElementById('addPersonForm').style.display = 'none';
-  document.getElementById('newPersonName').value = '';
-  document.getElementById('searchPersonInput').value = '';
+  const modal = document.getElementById('peopleModal');
+  if (modal) modal.style.display = 'flex';
+  const addForm = document.getElementById('addPersonForm');
+  if (addForm) addForm.style.display = 'none';
+  const nameInput = document.getElementById('newPersonName');
+  if (nameInput) nameInput.value = '';
+  const searchInput = document.getElementById('searchPersonInput');
+  if (searchInput) searchInput.value = '';
   currentSort = 'name';
   filterPeople();
   
-  document.getElementById('sortByNameBtn').onclick = () => {
-    currentSort = 'name';
-    filterPeople();
-  };
-  document.getElementById('sortByPlatoonBtn').onclick = () => {
-    currentSort = 'platoon';
-    filterPeople();
-  };
+  const sortByName = document.getElementById('sortByNameBtn');
+  if (sortByName) sortByName.onclick = () => { currentSort = 'name'; filterPeople(); };
+  const sortByPlatoon = document.getElementById('sortByPlatoonBtn');
+  if (sortByPlatoon) sortByPlatoon.onclick = () => { currentSort = 'platoon'; filterPeople(); };
 }
 
 async function loadPeopleForSchool(schoolId) {
@@ -86,7 +86,7 @@ async function loadPeopleForSchool(schoolId) {
 }
 
 function filterPeople() {
-  const searchTerm = document.getElementById('searchPersonInput').value.trim().toLowerCase();
+  const searchTerm = document.getElementById('searchPersonInput')?.value.trim().toLowerCase() || '';
   let filtered = [...allPeople];
   if (searchTerm) filtered = filtered.filter(p => p.full_name.toLowerCase().includes(searchTerm));
   if (currentSort === 'name') filtered.sort(window.collectionsHelpers.sortPeopleByName);
@@ -98,7 +98,7 @@ function renderPeopleTable(people) {
   const tbody = document.getElementById('peopleTableBody');
   if (!tbody) return;
   if (people.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Нет участников<\/td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Нет участников</td></tr>';
     return;
   }
   tbody.innerHTML = people.map((p, idx) => {
@@ -137,7 +137,8 @@ function attachPersonEvents() {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const personId = btn.getAttribute('data-person-id');
-      const currentName = btn.closest('tr').querySelector('td:nth-child(2)').innerText;
+      const row = btn.closest('tr');
+      const currentName = row ? row.querySelector('td:nth-child(2)').innerText : '';
       const newName = prompt('Введите новое ФИО:', currentName);
       if (newName && newName.trim() && newName.trim() !== currentName) {
         try {
@@ -155,37 +156,61 @@ function attachPersonEvents() {
 }
 
 // Добавление человека
-document.getElementById('addPersonBtn')?.addEventListener('click', () => {
-  document.getElementById('addPersonForm').style.display = 'block';
-  document.getElementById('addPersonBtn').style.display = 'none';
-  document.getElementById('newPersonName').value = '';
-});
-document.getElementById('cancelAddPersonBtn')?.addEventListener('click', () => {
-  document.getElementById('addPersonForm').style.display = 'none';
-  document.getElementById('addPersonBtn').style.display = 'block';
-});
-document.getElementById('savePersonBtn')?.addEventListener('click', async () => {
-  const name = document.getElementById('newPersonName').value.trim();
-  if (!name) { alert('Заполните ФИО'); return; }
-  try {
-    await fetch(`/api/schools/${currentSchoolId}/people`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_name: name, organization: currentSchoolName })
-    });
-    await loadPeopleForSchool(currentSchoolId);
-    if (window.loadCollections) window.loadCollections();
-    document.getElementById('addPersonForm').style.display = 'none';
-    document.getElementById('addPersonBtn').style.display = 'block';
-    document.getElementById('newPersonName').value = '';
-  } catch (err) { alert('Ошибка добавления: ' + err.message); }
-});
-document.getElementById('searchPersonInput')?.addEventListener('input', filterPeople);
-document.getElementById('closePeopleModalBtn')?.addEventListener('click', () => {
-  document.getElementById('peopleModal').style.display = 'none';
-});
-document.getElementById('peopleModal')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('peopleModal')) document.getElementById('peopleModal').style.display = 'none';
-});
+const addPersonBtn = document.getElementById('addPersonBtn');
+if (addPersonBtn) {
+  addPersonBtn.addEventListener('click', () => {
+    const addForm = document.getElementById('addPersonForm');
+    if (addForm) addForm.style.display = 'block';
+    if (addPersonBtn) addPersonBtn.style.display = 'none';
+    const nameInput = document.getElementById('newPersonName');
+    if (nameInput) nameInput.value = '';
+  });
+}
+const cancelAddPersonBtn = document.getElementById('cancelAddPersonBtn');
+if (cancelAddPersonBtn) {
+  cancelAddPersonBtn.addEventListener('click', () => {
+    const addForm = document.getElementById('addPersonForm');
+    if (addForm) addForm.style.display = 'none';
+    const addBtn = document.getElementById('addPersonBtn');
+    if (addBtn) addBtn.style.display = 'block';
+  });
+}
+const savePersonBtn = document.getElementById('savePersonBtn');
+if (savePersonBtn) {
+  savePersonBtn.addEventListener('click', async () => {
+    const name = document.getElementById('newPersonName')?.value.trim();
+    if (!name) { alert('Заполните ФИО'); return; }
+    try {
+      await fetch(`/api/schools/${currentSchoolId}/people`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: name, organization: currentSchoolName })
+      });
+      await loadPeopleForSchool(currentSchoolId);
+      if (window.loadCollections) window.loadCollections();
+      const addForm = document.getElementById('addPersonForm');
+      if (addForm) addForm.style.display = 'none';
+      const addBtn = document.getElementById('addPersonBtn');
+      if (addBtn) addBtn.style.display = 'block';
+      const nameInput = document.getElementById('newPersonName');
+      if (nameInput) nameInput.value = '';
+    } catch (err) { alert('Ошибка добавления: ' + err.message); }
+  });
+}
+const searchPersonInput = document.getElementById('searchPersonInput');
+if (searchPersonInput) searchPersonInput.addEventListener('input', filterPeople);
+const closePeopleModalBtn = document.getElementById('closePeopleModalBtn');
+if (closePeopleModalBtn) {
+  closePeopleModalBtn.addEventListener('click', () => {
+    const modal = document.getElementById('peopleModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
+const peopleModalElem = document.getElementById('peopleModal');
+if (peopleModalElem) {
+  peopleModalElem.addEventListener('click', (e) => {
+    if (e.target === peopleModalElem) peopleModalElem.style.display = 'none';
+  });
+}
 
 window.openPeopleModal = openPeopleModal;

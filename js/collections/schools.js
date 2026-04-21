@@ -1,8 +1,14 @@
-// ========== МОДАЛКА СПИСКА ШКОЛ И ДОБАВЛЕНИЕ ШКОЛЫ ==========
+// ========== МОДАЛКА СПИСКА ШКОЛ ==========
 let currentCollectionId = null;
 let allSchools = [];
 
-// 1. Создаём модальное окно списка школ
+// Прямая установка ID сбора
+window.setCurrentCollectionId = function(id) {
+  console.log('setCurrentCollectionId вызван с ID:', id);
+  currentCollectionId = id;
+};
+
+// Создаём модальное окно школ (один раз)
 if (!document.getElementById('schoolsModal')) {
   const schoolsModal = document.createElement('div');
   schoolsModal.id = 'schoolsModal';
@@ -20,7 +26,7 @@ if (!document.getElementById('schoolsModal')) {
       <div style="flex: 1; overflow-y: auto; padding: 0 20px;" id="schoolsListContainer">
         <table style="width:100%; border-collapse: collapse;" id="schoolsTable">
           <thead>
-            <tr><th>Школа</th><th>Руководитель</th><th>Кол-во человек</th><th style="width:120px">Действия</th></tr>
+            <tr><th>Школа</th><th>Руководитель</th><th>Кол-во человек</th><th style="width:120px">Действия</th></td>
           </thead>
           <tbody id="schoolsTableBody"></tbody>
         </table>
@@ -33,12 +39,12 @@ if (!document.getElementById('schoolsModal')) {
   document.body.appendChild(schoolsModal);
 }
 
-// 2. Создаём модальное окно добавления школы
+// Создаём модальное окно добавления школы, если его нет
 if (!document.getElementById('addSchoolModal')) {
-  const addSchoolModal = document.createElement('div');
-  addSchoolModal.id = 'addSchoolModal';
-  addSchoolModal.className = 'modal';
-  addSchoolModal.innerHTML = `
+  const addSchoolModalDiv = document.createElement('div');
+  addSchoolModalDiv.id = 'addSchoolModal';
+  addSchoolModalDiv.className = 'modal';
+  addSchoolModalDiv.innerHTML = `
     <div class="modal-content" style="max-width: 600px;">
       <div class="modal-header">
         <h2><i class="fas fa-plus-circle"></i> Добавить школу</h2>
@@ -66,19 +72,22 @@ if (!document.getElementById('addSchoolModal')) {
       </div>
     </div>
   `;
-  document.body.appendChild(addSchoolModal);
+  document.body.appendChild(addSchoolModalDiv);
 }
 
-// ========== ФУНКЦИИ РАБОТЫ СО ШКОЛАМИ ==========
+// Функции работы со школами
 async function loadSchools(collectionId) {
+  console.log('loadSchools вызвана с ID:', collectionId);
   currentCollectionId = collectionId;
   try {
     const resp = await fetch(`/api/collections/${collectionId}/schools`);
     if (!resp.ok) throw new Error();
     allSchools = await resp.json();
+    console.log('Загружены школы:', allSchools);
     window.allSchools = allSchools;
     filterSchools();
   } catch (err) {
+    console.error('Ошибка загрузки школ:', err);
     const tbody = document.getElementById('schoolsTableBody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="4">Ошибка загрузки школ<\/td></tr>';
   }
@@ -197,62 +206,100 @@ async function openEditSchoolModal(schoolId, currentName, currentHead) {
   });
 }
 
-// ========== ОБРАБОТЧИКИ СОБЫТИЙ ДЛЯ МОДАЛКИ ШКОЛ ==========
-document.getElementById('addSchoolBtn')?.addEventListener('click', () => {
-  document.getElementById('addSchoolModal').style.display = 'flex';
-  document.getElementById('addSchoolForm').reset();
-});
-document.getElementById('closeSchoolsModalBtn')?.addEventListener('click', () => {
-  document.getElementById('schoolsModal').style.display = 'none';
-});
-document.getElementById('schoolsModal')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('schoolsModal')) {
-    document.getElementById('schoolsModal').style.display = 'none';
-  }
-});
-document.getElementById('searchSchoolInput')?.addEventListener('input', () => filterSchools());
-
-// ========== ОБРАБОТЧИКИ ДЛЯ МОДАЛКИ ДОБАВЛЕНИЯ ШКОЛЫ ==========
-document.getElementById('closeAddSchoolModalBtn')?.addEventListener('click', () => {
-  document.getElementById('addSchoolModal').style.display = 'none';
-});
-document.getElementById('cancelAddSchoolBtn')?.addEventListener('click', () => {
-  document.getElementById('addSchoolModal').style.display = 'none';
-});
-document.getElementById('addSchoolForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const edu_org = document.getElementById('schoolName').value.trim();
-  const head_teacher = document.getElementById('headTeacher').value.trim();
-  const peopleList = document.getElementById('schoolPeopleList').value;
-  if (!edu_org || !peopleList) {
-    alert('Заполните название школы и список людей');
-    return;
-  }
-  try {
-    const response = await fetch(`/api/collections/${currentCollectionId}/schools`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edu_org, head_teacher, peopleList })
-    });
-    if (!response.ok) throw new Error('Ошибка сервера');
-    const data = await response.json();
-    if (data.schools) {
-      allSchools = data.schools;
-      filterSchools();
+// ========== ОБРАБОТЧИКИ МОДАЛКИ ШКОЛ ==========
+const addSchoolBtn = document.getElementById('addSchoolBtn');
+if (addSchoolBtn) {
+  addSchoolBtn.addEventListener('click', () => {
+    const addSchoolModal = document.getElementById('addSchoolModal');
+    if (addSchoolModal) {
+      addSchoolModal.style.display = 'flex';
+      const form = document.getElementById('addSchoolForm');
+      if (form) form.reset();
     } else {
-      await loadSchools(currentCollectionId);
+      console.error('Модалка добавления школы не найдена');
     }
-    if (window.loadCollections) window.loadCollections();
-    document.getElementById('addSchoolModal').style.display = 'none';
-    document.getElementById('schoolName').value = '';
-    document.getElementById('headTeacher').value = '';
-    document.getElementById('schoolPeopleList').value = '';
-  } catch (err) {
-    alert('Ошибка добавления школы: ' + err.message);
-  }
-});
+  });
+}
 
-// Экспорт в глобальную область
+const closeSchoolsModalBtn = document.getElementById('closeSchoolsModalBtn');
+if (closeSchoolsModalBtn) {
+  closeSchoolsModalBtn.addEventListener('click', () => {
+    const modal = document.getElementById('schoolsModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
+const schoolsModalElem = document.getElementById('schoolsModal');
+if (schoolsModalElem) {
+  schoolsModalElem.addEventListener('click', (e) => {
+    if (e.target === schoolsModalElem) schoolsModalElem.style.display = 'none';
+  });
+}
+const searchSchoolInput = document.getElementById('searchSchoolInput');
+if (searchSchoolInput) {
+  searchSchoolInput.addEventListener('input', () => filterSchools());
+}
+
+// ========== ОБРАБОТЧИКИ МОДАЛКИ ДОБАВЛЕНИЯ ШКОЛЫ ==========
+const closeAddSchoolModalBtn = document.getElementById('closeAddSchoolModalBtn');
+if (closeAddSchoolModalBtn) {
+  closeAddSchoolModalBtn.addEventListener('click', () => {
+    const modal = document.getElementById('addSchoolModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
+const cancelAddSchoolBtn = document.getElementById('cancelAddSchoolBtn');
+if (cancelAddSchoolBtn) {
+  cancelAddSchoolBtn.addEventListener('click', () => {
+    const modal = document.getElementById('addSchoolModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
+const addSchoolFormElem = document.getElementById('addSchoolForm');
+if (addSchoolFormElem) {
+  addSchoolFormElem.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const edu_org = document.getElementById('schoolName')?.value.trim();
+    const head_teacher = document.getElementById('headTeacher')?.value.trim();
+    const peopleList = document.getElementById('schoolPeopleList')?.value;
+    if (!edu_org || !peopleList) {
+      alert('Заполните название школы и список людей');
+      return;
+    }
+    if (!currentCollectionId) {
+      alert('Ошибка: не выбран сбор. Закройте и снова откройте модалку школ.');
+      return;
+    }
+    console.log('Добавление школы в сбор с ID:', currentCollectionId);
+    try {
+      const response = await fetch(`/api/collections/${currentCollectionId}/schools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edu_org, head_teacher, peopleList })
+      });
+      if (!response.ok) throw new Error('Ошибка сервера');
+      const data = await response.json();
+      console.log('Ответ сервера:', data);
+      if (data.schools) {
+        allSchools = data.schools;
+        filterSchools();
+      } else {
+        await loadSchools(currentCollectionId);
+      }
+      if (window.loadCollections) window.loadCollections();
+      const modal = document.getElementById('addSchoolModal');
+      if (modal) modal.style.display = 'none';
+      const schoolNameInput = document.getElementById('schoolName');
+      const headTeacherInput = document.getElementById('headTeacher');
+      const schoolPeopleList = document.getElementById('schoolPeopleList');
+      if (schoolNameInput) schoolNameInput.value = '';
+      if (headTeacherInput) headTeacherInput.value = '';
+      if (schoolPeopleList) schoolPeopleList.value = '';
+    } catch (err) {
+      alert('Ошибка добавления школы: ' + err.message);
+    }
+  });
+}
+
 window.loadSchools = loadSchools;
 window.filterSchools = filterSchools;
 window.renderSchoolsTable = renderSchoolsTable;
