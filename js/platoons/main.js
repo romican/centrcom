@@ -33,6 +33,18 @@ function renderPlatoonsSection() {
   `;
   window.contentBody.appendChild(container);
 
+  // Функция авто-выбора сбора (текущий или последний)
+  function getAutoSelectCollectionId(collections) {
+    if (!collections.length) return null;
+    const today = new Date().toISOString().slice(0,10);
+    // Ищем сбор, содержащий сегодняшнюю дату
+    const current = collections.find(c => c.date_start <= today && c.date_end >= today);
+    if (current) return current.id;
+    // Иначе берём самый поздний по дате окончания
+    const sorted = [...collections].sort((a,b) => new Date(b.date_end) - new Date(a.date_end));
+    return sorted[0].id;
+  }
+
   // Загрузка списка сборов с автовыбором текущего
   fetch('/api/collections')
     .then(res => res.json())
@@ -46,15 +58,8 @@ function renderPlatoonsSection() {
       select.innerHTML = '<option value="">-- Выберите сбор --</option>' +
         collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
       
-      // Автовыбор сбора, в который попадает сегодняшняя дата
-      const today = new Date().toISOString().slice(0,10);
-      let autoSelectedId = null;
-      for (const c of collections) {
-        if (c.date_start <= today && c.date_end >= today) {
-          autoSelectedId = c.id;
-          break;
-        }
-      }
+      // Автовыбор сбора (текущий или последний)
+      const autoSelectedId = getAutoSelectCollectionId(collections);
       if (autoSelectedId) {
         select.value = autoSelectedId;
         platoon_currentCollectionId = autoSelectedId;

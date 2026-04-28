@@ -60,30 +60,31 @@ window.renderScores = async function() {
     </div>
   `;
 
-  const collectionsResp = await fetch('/api/collections');
-  const collections = await collectionsResp.json();
-  const collectionSelect = document.getElementById('scoresCollectionSelect');
-  if (collections.length === 0) {
-    collectionSelect.innerHTML = '<option>-- Нет сборов --</option>';
-    return;
-  }
-  collectionSelect.innerHTML = '<option value="">-- Выберите сбор --</option>' +
-    collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
-  
+const collectionsResp = await fetch('/api/collections');
+const collections = await collectionsResp.json();
+const collectionSelect = document.getElementById('scoresCollectionSelect');
+if (collections.length === 0) {
+  collectionSelect.innerHTML = '<option>-- Нет сборов --</option>';
+  return;
+}
+collectionSelect.innerHTML = '<option value="">-- Выберите сбор --</option>' +
+  collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
+
+// Авто-выбор: текущий или последний
+function getAutoSelectCollectionId(collections) {
   const today = new Date().toISOString().slice(0,10);
-  let autoSelectedId = null;
-  for (const c of collections) {
-    if (c.date_start <= today && c.date_end >= today) {
-      autoSelectedId = c.id;
-      break;
-    }
-  }
-  if (autoSelectedId) {
-    collectionSelect.value = autoSelectedId;
-    scores_currentCollectionId = autoSelectedId;
-    await loadSchools();
-    document.getElementById('scoresSchoolSelect').disabled = false;
-  }
+  const current = collections.find(c => c.date_start <= today && c.date_end >= today);
+  if (current) return current.id;
+  const sorted = [...collections].sort((a,b) => new Date(b.date_end) - new Date(a.date_end));
+  return sorted.length ? sorted[0].id : null;
+}
+const autoSelectedId = getAutoSelectCollectionId(collections);
+if (autoSelectedId) {
+  collectionSelect.value = autoSelectedId;
+  scores_currentCollectionId = autoSelectedId;
+  await loadSchools();
+  document.getElementById('scoresSchoolSelect').disabled = false;
+}
 
   collectionSelect.addEventListener('change', async (e) => {
     scores_currentCollectionId = e.target.value;
