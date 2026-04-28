@@ -161,7 +161,6 @@ async function loadSchoolsAndRender(collectionId) {
       <\/tr>
     `).join('');
   }
-  // Привязываем обработчики к кнопкам и клику по строке
   attachSchoolButtons();
   return schools;
 }
@@ -169,9 +168,6 @@ async function loadSchoolsAndRender(collectionId) {
 async function openSchoolsModal(collectionId) {
   ensureSchoolsModal();
   window.currentCollectionIdForSchools = collectionId;
-  console.log('openSchoolsModal вызвана с ID:', collectionId);
-  
-  // Информация о сборе
   const collectionsResp = await fetch('/api/collections');
   const allCollections = await collectionsResp.json();
   const collection = allCollections.find(c => c.id == collectionId);
@@ -182,19 +178,11 @@ async function openSchoolsModal(collectionId) {
       <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}
     `;
   }
-  
-  // Загружаем и отображаем школы
   await loadSchoolsAndRender(collectionId);
-  
-  // Показываем модалку
   const schoolsModal = document.getElementById('schoolsModal');
   if (schoolsModal) schoolsModal.style.display = 'flex';
-  
-  // Очищаем поиск
   const searchInput = document.getElementById('searchSchoolInput');
   if (searchInput) searchInput.value = '';
-  
-  // Обработчик закрытия
   const closeBtn = document.getElementById('closeSchoolsModalBtn');
   if (closeBtn) {
     closeBtn.onclick = () => {
@@ -205,8 +193,6 @@ async function openSchoolsModal(collectionId) {
   schoolsModal.onclick = (e) => {
     if (e.target === schoolsModal) schoolsModal.style.display = 'none';
   };
-  
-  // Обработчик добавления школы (создаём модалку добавления)
   const addSchoolBtn = document.getElementById('addSchoolBtn');
   if (addSchoolBtn) {
     addSchoolBtn.replaceWith(addSchoolBtn.cloneNode(true));
@@ -215,8 +201,127 @@ async function openSchoolsModal(collectionId) {
   }
 }
 
-// Модалка добавления школы
-// Модалка добавления школы (с надёжной проверкой количества участников)
+// ========== УЛУЧШЕННЫЙ ПАРСИНГ WORD ==========
+// Поиск названия школы в тексте документа
+function detectSchoolName(text) {
+  const patterns = [
+    /(ГБОУ|ГБПОУ|ГАПОУ|ГБОУ Школа|ГБПОУ "?[^"]+"?|ГАПОУ [^,\n]+)/gi,
+    /Школа №\s*\d+/gi,
+    /Школа №\s*\d+\s+имени\s+[А-Яа-я\.\s]+/gi,
+    /[А-Яа-я\s]+(?:колледж|техникум|лицей|гимназия)/gi,
+    /"([^"]+)"\s*–\s*(?:ГБОУ|ГБПОУ|ГАПОУ)/,
+    /ИТ\.МОСКВА/i
+  ];
+  let bestMatch = '';
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches && matches.length) {
+      // Выбираем самую длинную и специфичную строку
+      const candidate = matches.reduce((a, b) => a.length > b.length ? a : b, '');
+      if (candidate.length > bestMatch.length) bestMatch = candidate;
+    }
+  }
+  if (bestMatch) {
+    // Убираем лишние кавычки и пробелы
+    bestMatch = bestMatch.replace(/^["']|["']$/g, '').trim();
+  }
+  return bestMatch;
+}
+
+// Поиск колонки с ФИО (поддерживает разные варианты написания)
+function findFIOColumn(tableRows) {
+  const variants = [
+    /ф\.?и\.?о\.?/i,
+    /фио/i,
+    /ф\s+и\s+о/i,
+    /фамилия\s+имя\s+отчество/i,
+    /фамилия,? имя,? отчество/i,
+    /фио учащегося/i,
+    /фио ученика/i,
+    /фио обучающегося/i
+  ];
+  for (let r = 0; r < tableRows.length; r++) {
+    const cells = tableRows[r].querySelectorAll('th, td');
+    for (let c = 0; c < cells.length; c++) {
+      const cellText = cells[c].innerText.trim().toLowerCase();
+      for (const pattern of variants) {
+        if (pattern.test(cellText)) {
+          return { rowIndex: r, colIndex: c };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Извлечение ФИО из таблицы
+function extractFIList(tableRows, headerRowIndex, fioColIndex) {
+  const fioList = [];
+  for (let r = headerRowIndex + 1; r < tableRows.length; r++) {
+    const cells = tableRows[r].querySelectorAll('td');
+    if (cells.length > fioColIndex) {
+      const fio = cells[fioColIndex].innerText.trim();
+      if (fio) fioList.push(fio);
+    }
+  }
+  return fioList;
+}
+
+// Основная функция парсинга файла
+function parseWordFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const arrayBuffer = e.target.result;
+    mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+      .then(result => {
+        const html = result.value;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Сохраняем весь текст для поиска названия школы
+        const fullText = doc.body.innerText;
+        const schoolName = detectSchoolName(fullText);
+        
+        const tables = doc.querySelectorAll('table');
+        if (!tables.length) {
+          alert('В документе не найдено таблиц');
+          callback({ schoolName: null, fioList: [] });
+          return;
+        }
+        
+        let bestTable = null;
+        let bestFioColIndex = -1;
+        let bestHeaderRowIndex = -1;
+        for (const table of tables) {
+          const rows = table.querySelectorAll('tr');
+          const fioInfo = findFIOColumn(rows);
+          if (fioInfo) {
+            bestTable = rows;
+            bestHeaderRowIndex = fioInfo.rowIndex;
+            bestFioColIndex = fioInfo.colIndex;
+            break;
+          }
+        }
+        
+        if (bestFioColIndex === -1) {
+          alert('Не найдена колонка с ФИО (искали: Ф.И.О., ФИО, Ф И О и т.д.)');
+          callback({ schoolName: schoolName, fioList: [] });
+          return;
+        }
+        
+        const fioList = extractFIList(bestTable, bestHeaderRowIndex, bestFioColIndex);
+        callback({ schoolName: schoolName, fioList: fioList });
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Ошибка обработки файла: ' + err.message);
+        callback({ schoolName: null, fioList: [] });
+      });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ========== МОДАЛКА ДОБАВЛЕНИЯ ШКОЛЫ (с загрузкой Word) ==========
 function openAddSchoolModal(collectionId) {
   let addModal = document.getElementById('addSchoolModal');
   if (!addModal) {
@@ -243,6 +348,10 @@ function openAddSchoolModal(collectionId) {
               <label><i class="fas fa-list-ul"></i> Список людей (ФИО, каждый с новой строки)</label>
               <textarea id="schoolPeopleList" rows="8" placeholder="Иванов Иван Иванович&#10;Петров Петр Петрович" required style="width:100%; padding:12px; border-radius:16px; border:1.5px solid #e2e8f0; font-family:inherit;"></textarea>
             </div>
+            <div class="form-group">
+              <button type="button" id="loadWordBtn" class="btn" style="background: #8b5cf6; color: white; width: 100%;"><i class="fas fa-file-word"></i> Загрузить файл Word</button>
+              <input type="file" id="wordFileInput" accept=".docx" style="display: none;">
+            </div>
             <div class="form-actions">
               <button type="button" class="btn cancel" id="cancelAddSchoolBtn">Отменить</button>
               <button type="submit" class="btn add">Сохранить школу</button>
@@ -253,14 +362,40 @@ function openAddSchoolModal(collectionId) {
     `;
     document.body.appendChild(addModal);
   }
-  
+
   const closeModal = () => {
     addModal.style.display = 'none';
   };
   document.getElementById('closeAddSchoolModalBtn').onclick = closeModal;
   document.getElementById('cancelAddSchoolBtn').onclick = closeModal;
   addModal.onclick = (e) => { if (e.target === addModal) closeModal(); };
-  
+
+  // Обработчик загрузки Word
+  const loadWordBtn = document.getElementById('loadWordBtn');
+  const fileInput = document.getElementById('wordFileInput');
+  if (loadWordBtn && fileInput) {
+    loadWordBtn.onclick = () => {
+      fileInput.click();
+    };
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      parseWordFile(file, (result) => {
+        if (result.schoolName) {
+          const schoolNameInput = document.getElementById('schoolName');
+          if (schoolNameInput) schoolNameInput.value = result.schoolName;
+        }
+        if (result.fioList.length) {
+          const textarea = document.getElementById('schoolPeopleList');
+          if (textarea) {
+            textarea.value = result.fioList.join('\n');
+          }
+        }
+        fileInput.value = '';
+      });
+    };
+  }
+
   const form = document.getElementById('addSchoolForm');
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -283,34 +418,18 @@ function openAddSchoolModal(collectionId) {
       const data = await response.json();
       console.log('Школа добавлена, ответ:', data);
       closeModal();
-      
-      // Ожидаемое количество участников (по числу непустых строк)
+      await loadSchoolsAndRender(collectionId);
       const expectedCount = peopleList.split(/\r?\n/).filter(l => l.trim().length > 0).length;
-      
-      // Функция проверки с повторными попытками
-      const checkSchoolCount = async (attempt = 1, maxAttempts = 10, delay = 500) => {
-        const schools = await fetch(`/api/collections/${collectionId}/schools`).then(r => r.json());
-        const school = schools.find(s => s.edu_org === edu_org);
-        if (school && school.people_count === expectedCount) {
-          console.log(`✅ Количество участников совпало (${expectedCount}) после ${attempt} попытки`);
+      const schoolAfter = (await fetch(`/api/collections/${collectionId}/schools`).then(r => r.json())).find(s => s.edu_org === edu_org);
+      if (schoolAfter && schoolAfter.people_count !== expectedCount) {
+        setTimeout(async () => {
           await loadSchoolsAndRender(collectionId);
-          if (window.loadCollections) window.loadCollections();
-          return true;
-        }
-        if (attempt >= maxAttempts) {
-          console.warn(`⚠️ Не удалось дождаться корректного количества участников после ${maxAttempts} попыток. Текущее: ${school?.people_count || 0}, ожидалось: ${expectedCount}`);
-          // Всё равно показываем то, что есть
-          await loadSchoolsAndRender(collectionId);
-          if (window.loadCollections) window.loadCollections();
-          return false;
-        }
-        console.log(`⏳ Попытка ${attempt}: ожидаем ${expectedCount}, сейчас ${school?.people_count || 0}. Повтор через ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return checkSchoolCount(attempt + 1, maxAttempts, delay * 1.2); // увеличиваем задержку
-      };
+        }, 500);
+      }
+      if (window.loadCollections) window.loadCollections();
       
-      await checkSchoolCount();
-      
+      // Показываем уведомление
+      alert(`✅ Школа "${edu_org}" успешно добавлена.\n👥 Добавлено ${expectedCount} учащихся.`);
     } catch (err) {
       alert('Ошибка добавления школы: ' + err.message);
     } finally {
@@ -391,9 +510,7 @@ window.handleEditSchool = async function(btn) {
   });
 };
 
-// Привязка событий к динамическим кнопкам и клику по строке
 function attachSchoolButtons() {
-  // Кнопки удаления
   document.querySelectorAll('.delete-school-btn').forEach(btn => {
     btn.removeEventListener('click', window.deleteSchoolHandler);
     btn.addEventListener('click', (e) => {
@@ -401,7 +518,6 @@ function attachSchoolButtons() {
       window.handleDeleteSchool(btn);
     });
   });
-  // Кнопки редактирования
   document.querySelectorAll('.edit-school-btn').forEach(btn => {
     btn.removeEventListener('click', window.editSchoolHandler);
     btn.addEventListener('click', (e) => {
@@ -409,7 +525,6 @@ function attachSchoolButtons() {
       window.handleEditSchool(btn);
     });
   });
-  // Клик по строке школы (открытие участников)
   document.querySelectorAll('.school-row').forEach(row => {
     row.removeEventListener('click', window.rowClickHandler);
     row.addEventListener('click', (e) => {
