@@ -315,3 +315,24 @@ body.dark-theme .edit-topic-btn:hover {
 body.dark-theme .delete-topic-btn:hover {
   background: #7f1a1a !important;
 }
+/* Тёмная тема для textarea в модалке добавления школы */
+body.dark-theme #schoolPeopleList {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+
+/* Тёмная тема для полей поиска в модалках школ, участников, счетов */
+body.dark-theme #searchSchoolInput,
+body.dark-theme #searchPersonInput,
+body.dark-theme #searchInvoiceInput {
+  background: #0f172a;
+  border-color: #334155;
+  color: white;
+}
+
+body.dark-theme #searchSchoolInput::placeholder,
+body.dark-theme #searchPersonInput::placeholder,
+body.dark-theme #searchInvoiceInput::placeholder {
+  color: #94a3b8;
+}

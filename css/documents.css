@@ -66,3 +66,139 @@ body.dark-theme .doc-button {
 body.dark-theme .doc-button:hover {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
+/* ========== ДОКУМЕНТЫ: КАРТОЧКИ ========== */
+.documents-two-columns {
+  display: flex;
+  gap: 32px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.doc-column {
+  flex: 1;
+  min-width: 280px;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  transition: all 0.2s;
+}
+
+body.dark-theme .doc-column {
+  background: #1e293b;
+}
+
+.doc-column-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  color: #1e293b;
+}
+
+body.dark-theme .doc-column-title {
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+}
+
+.doc-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.doc-card {
+  background: #f8fafc;
+  border-radius: 20px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+body.dark-theme .doc-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.doc-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
+}
+
+.doc-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+body.dark-theme .doc-card-title {
+  color: #f1f5f9;
+}
+
+.doc-card-description {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+  flex: 1;
+}
+
+body.dark-theme .doc-card-description {
+  color: #94a3b8;
+}
+
+.doc-card-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.doc-card-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 40px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.doc-card-btn.generate {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+}
+
+.doc-card-btn.generate:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: scale(1.02);
+}
+
+.doc-card-btn.edit {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+body.dark-theme .doc-card-btn.edit {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.doc-card-btn.edit:hover {
+  background: #cbd5e1;
+  transform: scale(1.02);
+}
+
+body.dark-theme .doc-card-btn.edit:hover {
+  background: #475569;
+}
+
+@media (max-width: 768px) {
+  .doc-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}

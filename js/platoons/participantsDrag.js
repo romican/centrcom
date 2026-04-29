@@ -2,7 +2,6 @@ function renderPlatoonDetail(platoonId) {
   const platoon = window.platoon_platoons.find(p => p.id == platoonId);
   if (!platoon) return;
   document.getElementById('platoonTitle').innerText = platoon.name;
-  document.getElementById('generatePlatoonDocBtn').style.display = 'inline-block';
 
   const members = window.platoonsHelpers.sortBySchoolAndName((window.platoon_allParticipants || []).filter(p => p.platoon_id === platoonId));
   const unassigned = window.platoonsHelpers.sortBySchoolAndName((window.platoon_allParticipants || []).filter(p => !p.platoon_id));
@@ -26,11 +25,17 @@ function renderPlatoonDetail(platoonId) {
           </li>
         `).join('')}
       </ul>
-      <div class="list-header">
-        <label class="select-all-label">
-          <input type="checkbox" id="selectAllUnassigned" class="select-all-checkbox"> Выбрать всех
-        </label>
-        <h4 style="margin-top:24px;">Не распределены (${unassigned.length})</h4>
+      
+      <div class="unassigned-section">
+        <div class="unassigned-title">
+          <h3>Не распределены (${unassigned.length})</h3>
+        </div>
+        <div class="unassigned-toolbar">
+          <label class="select-all-label">
+            <input type="checkbox" id="selectAllUnassigned" class="select-all-checkbox"> Выбрать всех
+          </label>
+          <button class="btn-add-to-platoon" id="addToPlatoonTopBtn" style="display:none;"><i class="fas fa-user-plus"></i> Добавить во взвод (<span id="selectedCountAddTop">0</span>)</button>
+        </div>
       </div>
       <ul class="people-list" id="unassigned-list">
         ${unassigned.map(m => `
@@ -48,6 +53,13 @@ function renderPlatoonDetail(platoonId) {
   initDragAndDrop(platoonId);
   initCheckboxEvents();
   updateSelectedCounts();
+  
+  const addTopBtn = document.getElementById('addToPlatoonTopBtn');
+  if (addTopBtn) {
+    addTopBtn.addEventListener('click', () => {
+      window.bulkAddToPlatoon();
+    });
+  }
 }
 
 function initDragAndDrop(platoonId) {
@@ -115,11 +127,13 @@ function initCheckboxEvents() {
 function updateSelectedCounts() {
   const unassignedSelected = document.querySelectorAll('#unassigned-list .person-checkbox:checked').length;
   const platoonSelected = document.querySelectorAll('#platoon-list .person-checkbox:checked').length;
-  const addBtn = document.getElementById('addToPlatoonBtn');
+  const addTopBtn = document.getElementById('addToPlatoonTopBtn');
   const removeBtn = document.getElementById('removeFromPlatoonBtn');
-  if (addBtn) {
-    addBtn.style.display = unassignedSelected > 0 ? 'inline-flex' : 'none';
-    document.getElementById('selectedCountAdd').innerText = unassignedSelected;
+  const selectedCountAddTop = document.getElementById('selectedCountAddTop');
+  
+  if (addTopBtn) {
+    addTopBtn.style.display = unassignedSelected > 0 ? 'inline-flex' : 'none';
+    if (selectedCountAddTop) selectedCountAddTop.innerText = unassignedSelected;
   }
   if (removeBtn) {
     removeBtn.style.display = platoonSelected > 0 ? 'inline-flex' : 'none';

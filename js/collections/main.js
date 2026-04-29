@@ -11,54 +11,99 @@ window.loadCollections = async function() {
 };
 
 function renderCollections(collections) {
+  if (!window.contentBody) return;
+  window.contentBody.innerHTML = '';
+  
   if (!collections.length) {
-    window.contentBody.innerHTML = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody><tr><td colspan="7" class="loading-cell">Нет сборов</tbody></table></div>`;
+    window.contentBody.innerHTML = `
+      <div class="collections-table-container">
+        <table class="collections-table">
+          <thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead>
+          <tbody><tr><td colspan="7" class="loading-cell">Нет сборов</td></tr></tbody>
+        </table>
+      </div>
+    `;
     return;
   }
-  let html = `<div class="collections-table-container"><table class="collections-table"><thead><tr><th>№</th><th>Дата заезда</th><th>Дата выезда</th><th>Кол-во человек</th><th>Взводов</th><th>Войсковая часть</th><th>Действия</th></tr></thead><tbody>`;
+  
+  let html = `
+    <div class="collections-table-container">
+      <table class="collections-table">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Дата заезда</th>
+            <th>Дата выезда</th>
+            <th>Кол-во человек</th>
+            <th>Взводов</th>
+            <th>Войсковая часть</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
   collections.forEach((col, idx) => {
-    html += `<tr data-collection-id="${col.id}" class="collection-row">
-      <td>${idx+1}</td>
-      <td>${window.formatDate(col.date_start)}</td>
-      <td>${window.formatDate(col.date_end)}</td>
-      <td>${col.people_count || 0}</td>
-      <td>${col.platoons_count || 0}</td>
-      <td>${window.escapeHtml(col.military_unit)}</td>
-      <td>
-        <button class="edit-btn" data-id="${col.id}" data-type="collection"><i class="fas fa-edit"></i></button>
-        <button class="delete-btn" data-id="${col.id}" data-type="collection"><i class="fas fa-trash-alt"></i></button>
-      </td>
-    </tr>`;
+    html += `
+      <tr data-collection-id="${col.id}" class="collection-row">
+        <td>${idx+1}</td>
+        <td>${window.formatDate(col.date_start)}</td>
+        <td>${window.formatDate(col.date_end)}</td>
+        <td>${col.people_count || 0}</td>
+        <td>${col.platoons_count || 0}</td>
+        <td>${window.escapeHtml(col.military_unit)}</td>
+        <td>
+          <button class="edit-btn" data-id="${col.id}" data-type="collection"><i class="fas fa-edit"></i></button>
+          <button class="delete-btn" data-id="${col.id}" data-type="collection"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>
+    `;
   });
-  html += `</tbody></table></div>`;
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
   window.contentBody.innerHTML = html;
   attachCollectionEvents();
 }
 
 function attachCollectionEvents() {
-  document.querySelectorAll('.delete-btn[data-type="collection"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      if (confirm('Удалить сбор со всеми школами и участниками?')) {
-        fetch(`/api/collections/${id}`, { method: 'DELETE' }).then(() => window.loadCollections());
-      }
-    });
+  if (!window.contentBody) return;
+  
+  window.contentBody.querySelectorAll('.delete-btn[data-type="collection"]').forEach(btn => {
+    btn.removeEventListener('click', handleDelete);
+    btn.addEventListener('click', handleDelete);
   });
-  document.querySelectorAll('.edit-btn[data-type="collection"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      openEditCollectionModal(id);
-    });
+  function handleDelete(e) {
+    e.stopPropagation();
+    const id = e.currentTarget.getAttribute('data-id');
+    if (confirm('Удалить сбор со всеми школами и участниками?')) {
+      fetch(`/api/collections/${id}`, { method: 'DELETE' }).then(() => window.loadCollections());
+    }
+  }
+  
+  window.contentBody.querySelectorAll('.edit-btn[data-type="collection"]').forEach(btn => {
+    btn.removeEventListener('click', handleEdit);
+    btn.addEventListener('click', handleEdit);
   });
-  document.querySelectorAll('.collection-row').forEach(row => {
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return;
-      const id = row.getAttribute('data-collection-id');
-      openSchoolsModal(id);
-    });
+  function handleEdit(e) {
+    e.stopPropagation();
+    const id = e.currentTarget.getAttribute('data-id');
+    openEditCollectionModal(id);
+  }
+  
+  window.contentBody.querySelectorAll('.collection-row').forEach(row => {
+    row.removeEventListener('click', handleRowClick);
+    row.addEventListener('click', handleRowClick);
   });
+  function handleRowClick(e) {
+    if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return;
+    const id = e.currentTarget.getAttribute('data-collection-id');
+    openSchoolsModal(id);
+  }
 }
 
 async function openEditCollectionModal(id) {
@@ -147,18 +192,18 @@ async function loadSchoolsAndRender(collectionId) {
   const tbody = document.getElementById('schoolsTableBody');
   if (!tbody) return;
   if (!schools.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Нет школ. Нажмите "Добавить школу".<\/td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Нет школ. Нажмите "Добавить школу".</td></tr>';
   } else {
     tbody.innerHTML = schools.map(school => `
       <tr class="school-row" data-school-id="${school.id}">
-        <td class="school-name">${window.escapeHtml(school.edu_org)}<\/td>
-        <td class="school-head">${window.escapeHtml(school.head_teacher || '—')}<\/td>
-        <td class="school-count">${school.people_count || 0}<\/td>
+        <td class="school-name">${window.escapeHtml(school.edu_org)}</td>
+        <td class="school-head">${window.escapeHtml(school.head_teacher || '—')}</td>
+        <td class="school-count">${school.people_count || 0}</td>
         <td class="school-actions">
-          <button class="edit-school-btn" data-school-id="${school.id}"><i class="fas fa-edit"><\/i><\/button>
-          <button class="delete-school-btn" data-school-id="${school.id}"><i class="fas fa-trash-alt"><\/i><\/button>
-        <\/td>
-      <\/tr>
+          <button class="edit-school-btn" data-school-id="${school.id}"><i class="fas fa-edit"></i></button>
+          <button class="delete-school-btn" data-school-id="${school.id}"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>
     `).join('');
   }
   attachSchoolButtons();
@@ -202,7 +247,6 @@ async function openSchoolsModal(collectionId) {
 }
 
 // ========== УЛУЧШЕННЫЙ ПАРСИНГ WORD ==========
-// Поиск названия школы в тексте документа
 function detectSchoolName(text) {
   const patterns = [
     /(ГБОУ|ГБПОУ|ГАПОУ|ГБОУ Школа|ГБПОУ "?[^"]+"?|ГАПОУ [^,\n]+)/gi,
@@ -216,29 +260,21 @@ function detectSchoolName(text) {
   for (const pattern of patterns) {
     const matches = text.match(pattern);
     if (matches && matches.length) {
-      // Выбираем самую длинную и специфичную строку
       const candidate = matches.reduce((a, b) => a.length > b.length ? a : b, '');
       if (candidate.length > bestMatch.length) bestMatch = candidate;
     }
   }
   if (bestMatch) {
-    // Убираем лишние кавычки и пробелы
     bestMatch = bestMatch.replace(/^["']|["']$/g, '').trim();
   }
   return bestMatch;
 }
 
-// Поиск колонки с ФИО (поддерживает разные варианты написания)
 function findFIOColumn(tableRows) {
   const variants = [
-    /ф\.?и\.?о\.?/i,
-    /фио/i,
-    /ф\s+и\s+о/i,
-    /фамилия\s+имя\s+отчество/i,
-    /фамилия,? имя,? отчество/i,
-    /фио учащегося/i,
-    /фио ученика/i,
-    /фио обучающегося/i
+    /ф\.?и\.?о\.?/i, /фио/i, /ф\s+и\s+о/i,
+    /фамилия\s+имя\s+отчество/i, /фамилия,? имя,? отчество/i,
+    /фио учащегося/i, /фио ученика/i, /фио обучающегося/i
   ];
   for (let r = 0; r < tableRows.length; r++) {
     const cells = tableRows[r].querySelectorAll('th, td');
@@ -254,7 +290,6 @@ function findFIOColumn(tableRows) {
   return null;
 }
 
-// Извлечение ФИО из таблицы
 function extractFIList(tableRows, headerRowIndex, fioColIndex) {
   const fioList = [];
   for (let r = headerRowIndex + 1; r < tableRows.length; r++) {
@@ -267,7 +302,6 @@ function extractFIList(tableRows, headerRowIndex, fioColIndex) {
   return fioList;
 }
 
-// Основная функция парсинга файла
 function parseWordFile(file, callback) {
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -277,18 +311,14 @@ function parseWordFile(file, callback) {
         const html = result.value;
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        
-        // Сохраняем весь текст для поиска названия школы
         const fullText = doc.body.innerText;
         const schoolName = detectSchoolName(fullText);
-        
         const tables = doc.querySelectorAll('table');
         if (!tables.length) {
           alert('В документе не найдено таблиц');
           callback({ schoolName: null, fioList: [] });
           return;
         }
-        
         let bestTable = null;
         let bestFioColIndex = -1;
         let bestHeaderRowIndex = -1;
@@ -302,13 +332,11 @@ function parseWordFile(file, callback) {
             break;
           }
         }
-        
         if (bestFioColIndex === -1) {
           alert('Не найдена колонка с ФИО (искали: Ф.И.О., ФИО, Ф И О и т.д.)');
           callback({ schoolName: schoolName, fioList: [] });
           return;
         }
-        
         const fioList = extractFIList(bestTable, bestHeaderRowIndex, bestFioColIndex);
         callback({ schoolName: schoolName, fioList: fioList });
       })
@@ -370,7 +398,6 @@ function openAddSchoolModal(collectionId) {
   document.getElementById('cancelAddSchoolBtn').onclick = closeModal;
   addModal.onclick = (e) => { if (e.target === addModal) closeModal(); };
 
-  // Обработчик загрузки Word
   const loadWordBtn = document.getElementById('loadWordBtn');
   const fileInput = document.getElementById('wordFileInput');
   if (loadWordBtn && fileInput) {
@@ -427,8 +454,6 @@ function openAddSchoolModal(collectionId) {
         }, 500);
       }
       if (window.loadCollections) window.loadCollections();
-      
-      // Показываем уведомление
       alert(`✅ Школа "${edu_org}" успешно добавлена.\n👥 Добавлено ${expectedCount} учащихся.`);
     } catch (err) {
       alert('Ошибка добавления школы: ' + err.message);
@@ -577,9 +602,21 @@ window.openCollectionModal = function() {
   if (form) form.reset();
 };
 
-window.addEventListener('click', (e) => {
-  const modal = document.getElementById('collectionModal');
-  if (modal && e.target === modal) modal.style.display = 'none';
-});
+// Явные обработчики закрытия модалки сбора
+const closeCollectionModalBtn = document.getElementById('closeCollectionModalBtn');
+const cancelCollectionBtn = document.getElementById('cancelCollectionBtn');
+if (closeCollectionModalBtn) {
+  closeCollectionModalBtn.addEventListener('click', () => {
+    const modal = document.getElementById('collectionModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
+if (cancelCollectionBtn) {
+  cancelCollectionBtn.addEventListener('click', () => {
+    const modal = document.getElementById('collectionModal');
+    if (modal) modal.style.display = 'none';
+  });
+}
 
+// Загружаем сборы при загрузке страницы
 window.loadCollections();

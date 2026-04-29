@@ -17,13 +17,12 @@ function renderPlatoonsSection() {
       <ul class="platoons-list" id="platoonsList"></ul>
     </div>
     <div class="platoons-main">
-      <div class="platoon-title">
+      <div class="platoon-header">
         <h2 id="platoonTitle">Выберите взвод</h2>
         <div class="platoon-actions">
           <button class="btn-auto-distribute" id="autoDistributeBtn"><i class="fas fa-magic"></i> Распределить автоматически</button>
           <button class="btn-add-to-platoon" id="addToPlatoonBtn" style="display:none;"><i class="fas fa-user-plus"></i> Добавить в взвод (<span id="selectedCountAdd">0</span>)</button>
           <button class="btn-remove-from-platoon" id="removeFromPlatoonBtn" style="display:none;"><i class="fas fa-user-minus"></i> Удалить из взвода (<span id="selectedCountRemove">0</span>)</button>
-          <button class="btn-generate-doc" id="generatePlatoonDocBtn"><i class="fas fa-file-alt"></i> Сформировать документ</button>
         </div>
       </div>
       <div class="people-grid" id="peopleGrid">
@@ -33,19 +32,15 @@ function renderPlatoonsSection() {
   `;
   window.contentBody.appendChild(container);
 
-  // Функция авто-выбора сбора (текущий или последний)
   function getAutoSelectCollectionId(collections) {
     if (!collections.length) return null;
     const today = new Date().toISOString().slice(0,10);
-    // Ищем сбор, содержащий сегодняшнюю дату
     const current = collections.find(c => c.date_start <= today && c.date_end >= today);
     if (current) return current.id;
-    // Иначе берём самый поздний по дате окончания
     const sorted = [...collections].sort((a,b) => new Date(b.date_end) - new Date(a.date_end));
     return sorted[0].id;
   }
 
-  // Загрузка списка сборов с автовыбором текущего
   fetch('/api/collections')
     .then(res => res.json())
     .then(collections => {
@@ -58,7 +53,6 @@ function renderPlatoonsSection() {
       select.innerHTML = '<option value="">-- Выберите сбор --</option>' +
         collections.map(c => `<option value="${c.id}" data-start="${c.date_start}" data-end="${c.date_end}">${window.formatDate(c.date_start)} — ${window.formatDate(c.date_end)} (${c.military_unit})</option>`).join('');
       
-      // Автовыбор сбора (текущий или последний)
       const autoSelectedId = getAutoSelectCollectionId(collections);
       if (autoSelectedId) {
         select.value = autoSelectedId;
@@ -92,7 +86,6 @@ function renderPlatoonsSection() {
   document.getElementById('addToPlatoonBtn').addEventListener('click', window.bulkAddToPlatoon);
   document.getElementById('removeFromPlatoonBtn').addEventListener('click', window.bulkRemoveFromPlatoon);
 
-  // Автоматическое распределение (модалка)
   const autoDistributeModal = document.createElement('div');
   autoDistributeModal.id = 'autoDistributeModal';
   autoDistributeModal.className = 'modal';
@@ -153,10 +146,6 @@ function renderPlatoonsSection() {
       } catch (err) { alert('Ошибка: ' + err.message); }
     };
   });
-
-  document.getElementById('generatePlatoonDocBtn').addEventListener('click', () => {
-    if (platoon_currentPlatoonId) platoon_generateDocument(platoon_currentPlatoonId);
-  });
 }
 
 async function platoon_loadData() {
@@ -180,7 +169,6 @@ async function platoon_loadData() {
       platoon_currentPlatoonId = null;
       document.getElementById('platoonTitle').innerText = 'Нет взводов';
       document.getElementById('peopleGrid').innerHTML = '<div class="empty-message">Создайте взвод кнопкой выше</div>';
-      document.getElementById('generatePlatoonDocBtn').style.display = 'inline-block';
       document.getElementById('addToPlatoonBtn').style.display = 'none';
       document.getElementById('removeFromPlatoonBtn').style.display = 'none';
     }
@@ -197,26 +185,6 @@ function platoon_clearUI() {
   document.getElementById('peopleGrid').innerHTML = '<div class="empty-message">Выберите сбор</div>';
   document.getElementById('addToPlatoonBtn').style.display = 'none';
   document.getElementById('removeFromPlatoonBtn').style.display = 'none';
-}
-
-async function platoon_generateDocument(platoonId) {
-  try {
-    const response = await fetch('/api/generate-platoon-doc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ platoonId })
-    });
-    if (!response.ok) throw new Error('Ошибка генерации');
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `platoon_${platoonId}_${Date.now()}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (err) { alert('Ошибка: ' + err.message); }
 }
 
 window.renderPlatoons = renderPlatoonsSection;

@@ -142,19 +142,30 @@
   flex-direction: column;
 }
 
-.platoon-title {
+/* === НОВЫЕ СТИЛИ ДЛЯ ВЕРХНЕЙ ПАНЕЛИ ВЗВОДА === */
+.platoon-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 12px;
   border-bottom: 2px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-.platoon-title h2 {
-  font-size: 1.4rem;
+
+.platoon-header h2 {
   margin: 0;
+  font-size: 1.4rem;
 }
-.btn-generate-doc,
+
+.platoon-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Кнопки верхней панели */
 .btn-auto-distribute,
 .btn-add-to-platoon,
 .btn-remove-from-platoon {
@@ -179,13 +190,18 @@
 .btn-remove-from-platoon {
   background: #ef4444;
 }
-.btn-generate-doc:hover,
 .btn-auto-distribute:hover,
 .btn-add-to-platoon:hover,
 .btn-remove-from-platoon:hover {
   filter: brightness(0.95);
 }
+.btn-auto-distribute:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #6c757d !important;
+}
 
+/* === ОСНОВНАЯ СЕТКА УЧАСТНИКОВ === */
 .people-grid {
   flex: 1;
   background: #f8fafc;
@@ -260,7 +276,48 @@
   margin: 0;
 }
 
-/* Тёмная тема */
+/* === БЛОК "НЕ РАСПРЕДЕЛЕНЫ" === */
+.unassigned-section {
+  margin-top: 24px;
+  border-top: 2px solid #e2e8f0;
+  padding-top: 16px;
+}
+
+.unassigned-title h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+  color: #1e293b;
+}
+
+.unassigned-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Кнопка "Добавить во взвод" в тулбаре */
+#addToPlatoonTopBtn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+#addToPlatoonTopBtn:hover {
+  background: #059669;
+}
+
+/* === ТЁМНАЯ ТЕМА === */
 body.dark-theme .platoons-sidebar,
 body.dark-theme .platoons-main {
   background: #1e293b;
@@ -286,8 +343,37 @@ body.dark-theme .person-platoon {
   background: #334155;
   color: #cbd5e1;
 }
-.btn-auto-distribute:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #6c757d !important; /* серый цвет */
+body.dark-theme .platoon-header {
+  border-bottom-color: #334155;
+}
+body.dark-theme .unassigned-section {
+  border-top-color: #334155;
+}
+body.dark-theme .unassigned-title h3 {
+  color: #e2e8f0;
+}
+body.dark-theme #addToPlatoonTopBtn {
+  background: #059669;
+}
+body.dark-theme #addToPlatoonTopBtn:hover {
+  background: #047857;
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 768px) {
+  .platoon-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .unassigned-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .people-list li {
+    flex-wrap: wrap;
+  }
+  .person-name, .person-school, .person-platoon {
+    flex: auto;
+    width: 100%;
+  }
 }

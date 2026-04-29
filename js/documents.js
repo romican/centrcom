@@ -7,6 +7,72 @@ const collectionsChecklistDiv = document.getElementById('collectionsChecklist');
 let currentDocType = null;
 let selectedCollectionIds = [];
 
+// Хранилище описаний документов (ключ - id документа)
+let docDescriptions = {};
+
+// Загрузка описаний из localStorage
+function loadDocDescriptions() {
+  const saved = localStorage.getItem('docDescriptions');
+  if (saved) {
+    try {
+      docDescriptions = JSON.parse(saved);
+    } catch(e) {}
+  }
+  // Значения по умолчанию
+  if (!docDescriptions['svodnaya']) docDescriptions['svodnaya'] = 'Сводная ведомость по школе: список участников, даты сборов.';
+  if (!docDescriptions['vrem_jurnal']) docDescriptions['vrem_jurnal'] = 'Временный журнал для школы и взвода: список участников, объединённые ячейки.';
+  if (!docDescriptions['fizo']) docDescriptions['fizo'] = 'Протокол выполнения норматива "Бег 100 метров" по взводу.';
+  saveDocDescriptions();
+}
+function saveDocDescriptions() {
+  localStorage.setItem('docDescriptions', JSON.stringify(docDescriptions));
+}
+function getDocDescription(docId) {
+  return docDescriptions[docId] || '';
+}
+function setDocDescription(docId, desc) {
+  docDescriptions[docId] = desc;
+  saveDocDescriptions();
+}
+
+// Модалка редактирования описания документа
+function openEditDescriptionModal(docId, docTitle, currentDesc) {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:500px;">
+      <div class="modal-header">
+        <h2>Редактировать описание</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div style="padding:16px 24px;">
+        <div class="form-group">
+          <label>Документ: ${docTitle}</label>
+          <textarea id="docDescTextarea" rows="5" style="width:100%; padding:12px; border-radius:16px; border:1.5px solid #e2e8f0; font-family:inherit;">${currentDesc}</textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn cancel" id="cancelDescEditBtn">Отмена</button>
+          <button type="button" class="btn add" id="saveDescEditBtn">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.style.display = 'flex';
+  const closeModal = () => modal.remove();
+  modal.querySelector('.close-modal').addEventListener('click', closeModal);
+  modal.querySelector('#cancelDescEditBtn').addEventListener('click', closeModal);
+  modal.querySelector('#saveDescEditBtn').addEventListener('click', () => {
+    const newDesc = modal.querySelector('#docDescTextarea').value.trim();
+    setDocDescription(docId, newDesc);
+    closeModal();
+    renderDocuments(); // перерисовываем карточки
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+}
+
 // Модалка выбора школы (для сводной ведомости)
 let schoolSelectModal = null;
 function createSchoolSelectModal() {
@@ -171,7 +237,7 @@ function showPlatoonSelector(platoons) {
   };
 }
 
-// ========== НОВАЯ МОДАЛКА ДЛЯ ВРЕМЕННОГО ЖУРНАЛА (выбор школы и взвода) ==========
+// Модалка для временного журнала (выбор школы и взвода)
 let tempJournalSchoolSelectModal = null;
 let tempJournalSchools = [];
 let tempJournalPlatoons = [];
@@ -233,14 +299,12 @@ function showTempJournalSchoolSelector(schools) {
     }
     tempJournalSelectedSchoolId = parseInt(selectedRadio.value);
     modal.style.display = 'none';
-    // Загружаем взвода для выбранной школы
     await loadPlatoonsForSchool(tempJournalSelectedSchoolId);
     showTempJournalPlatoonSelector(tempJournalPlatoons);
   };
 }
 
 function createTempJournalPlatoonModal() {
-  // можно переиспользовать platoonSelectModal, но для удобства создадим отдельную
   if (document.getElementById('tempJournalPlatoonModal')) return;
   const modal = document.createElement('div');
   modal.id = 'tempJournalPlatoonModal';
@@ -333,37 +397,86 @@ function showTempJournalPlatoonSelector(platoons) {
   };
 }
 
-// Основная функция отрисовки раздела Документы
+// Основная функция отрисовки раздела Документы (карточки)
 window.renderDocuments = function() {
+  loadDocDescriptions();
+  
+  const svodnayaDesc = getDocDescription('svodnaya');
+  const vremDesc = getDocDescription('vrem_jurnal');
+  const fizoDesc = getDocDescription('fizo');
+  
   const html = `
     <div class="documents-two-columns">
       <div class="doc-column">
         <div class="doc-column-title">Контрактные документы</div>
-        <div class="doc-buttons-list">
-          <button class="doc-button" data-doc="Сводная ведомость">Сводная ведомость</button>
-          <button class="doc-button" data-doc="Временный журнал">Временный журнал</button>
+        <div class="doc-cards-grid">
+          <div class="doc-card" data-doc="svodnaya">
+            <div class="doc-card-title">Сводная ведомость</div>
+            <div class="doc-card-description">${window.escapeHtml(svodnayaDesc)}</div>
+            <div class="doc-card-buttons">
+              <button class="doc-card-btn generate" data-doc="svodnaya">Сформировать документ</button>
+              <button class="doc-card-btn edit" data-doc="svodnaya">Редактировать</button>
+            </div>
+          </div>
+          <div class="doc-card" data-doc="vrem_jurnal">
+            <div class="doc-card-title">Временный журнал</div>
+            <div class="doc-card-description">${window.escapeHtml(vremDesc)}</div>
+            <div class="doc-card-buttons">
+              <button class="doc-card-btn generate" data-doc="vrem_jurnal">Сформировать документ</button>
+              <button class="doc-card-btn edit" data-doc="vrem_jurnal">Редактировать</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="doc-column">
         <div class="doc-column-title">Внутренние документы</div>
-        <div class="doc-buttons-list">
-          <button class="doc-button" data-doc="Физо (100м)">Физо (100м)</button>
+        <div class="doc-cards-grid">
+          <div class="doc-card" data-doc="fizo">
+            <div class="doc-card-title">Физо (100м)</div>
+            <div class="doc-card-description">${window.escapeHtml(fizoDesc)}</div>
+            <div class="doc-card-buttons">
+              <button class="doc-card-btn generate" data-doc="fizo">Сформировать документ</button>
+              <button class="doc-card-btn edit" data-doc="fizo">Редактировать</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   `;
   window.contentBody.innerHTML = html;
   
-  document.querySelectorAll('.doc-button').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      currentDocType = btn.getAttribute('data-doc');
-      if (currentDocType === 'Сводная ведомость') {
+  // Обработчики для кнопок
+  document.querySelectorAll('.doc-card-btn.generate').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const docType = btn.getAttribute('data-doc');
+      if (docType === 'svodnaya') {
         await handleSvodnaya();
-      } else if (currentDocType === 'Физо (100м)') {
-        await handleFizo();
-      } else if (currentDocType === 'Временный журнал') {
+      } else if (docType === 'vrem_jurnal') {
         await handleVremJournal();
+      } else if (docType === 'fizo') {
+        await handleFizo();
       }
+    });
+  });
+  
+  document.querySelectorAll('.doc-card-btn.edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const docType = btn.getAttribute('data-doc');
+      let title = '';
+      let currentDesc = '';
+      if (docType === 'svodnaya') {
+        title = 'Сводная ведомость';
+        currentDesc = getDocDescription('svodnaya');
+      } else if (docType === 'vrem_jurnal') {
+        title = 'Временный журнал';
+        currentDesc = getDocDescription('vrem_jurnal');
+      } else if (docType === 'fizo') {
+        title = 'Физо (100м)';
+        currentDesc = getDocDescription('fizo');
+      }
+      openEditDescriptionModal(docType, title, currentDesc);
     });
   });
 };
@@ -405,7 +518,7 @@ async function handleSvodnaya() {
           alert('В выбранных сборах нет школ с участниками');
           return;
         }
-        showSchoolSelector(schools, currentDocType);
+        showSchoolSelector(schools, 'svodnaya');
       } catch (err) {
         alert('Ошибка загрузки школ: ' + err.message);
       }
@@ -426,7 +539,7 @@ async function handleSvodnaya() {
   }
 }
 
-// Логика для Физо (100м) – выбор сборов → выбор взвода → генерация Excel
+// Логика для Физо (100м)
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');
@@ -481,7 +594,7 @@ async function handleFizo() {
   }
 }
 
-// Новая логика для Временного журнала: выбор сборов → выбор школы → выбор взвода → генерация
+// Логика для Временного журнала
 async function handleVremJournal() {
   try {
     const resp = await fetch('/api/collections');
