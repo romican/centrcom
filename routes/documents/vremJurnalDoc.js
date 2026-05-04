@@ -14,7 +14,6 @@ function formatDateFull(dateStr) {
   return `${d}.${m}.${y}`;
 }
 
-// Получить ID предмета по его точному названию
 async function getSubjectIdByName(name) {
   return new Promise((resolve, reject) => {
     db.get(`SELECT id FROM subjects WHERE name = ?`, [name], (err, row) => {
@@ -24,25 +23,22 @@ async function getSubjectIdByName(name) {
   });
 }
 
-// Применить стиль к ячейке (шрифт, размер, выравнивание)
 function applyCellStyle(cell, fontSize, horizontalAlign = 'center', verticalAlign = 'middle') {
   cell.font = { name: 'Times New Roman', size: fontSize, bold: false };
   cell.alignment = { horizontal: horizontalAlign, vertical: verticalAlign };
 }
 
-// Обработка одного предмета: вставка списка учеников, дат и оценок + стили
 async function processSubject(worksheet, subjectName, tagPrefix, people, collectionId) {
-  // 1. Получить ID предмета
   const subjectId = await getSubjectIdByName(subjectName);
   if (!subjectId) {
     console.warn(`Предмет "${subjectName}" не найден в БД, пропускаем.`);
     return;
   }
 
-  // 2. Получить уникальные даты занятий по этому предмету в данном сборе
+  // Все темы по предмету (без DISTINCT) – максимум 8
   const topics = await new Promise((resolve, reject) => {
     db.all(`
-      SELECT DISTINCT date
+      SELECT id, date
       FROM topics
       WHERE collection_id = ? AND subject_id = ?
       ORDER BY date
@@ -51,19 +47,19 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
       else resolve(rows);
     });
   });
-  const uniqueDates = topics.map(t => t.date).slice(0, 6); // не более 6 дат (K..P)
+  const topicsToUse = topics.slice(0, 8);
+  console.log(`Предмет "${subjectName}": найдено ${topicsToUse.length} тем(ы) для вставки.`);
 
-  // 3. Получить оценки для всех учеников по этому предмету
-  const scoresMap = new Map(); // ключ: `${personId}|${date}`
-  if (uniqueDates.length) {
-    const datePlaceholders = uniqueDates.map(() => '?').join(',');
+  // Оценки
+  const scoresMap = new Map();
+  if (topicsToUse.length) {
+    const topicIdPlaceholders = topicsToUse.map(() => '?').join(',');
     const query = `
-      SELECT s.person_id, t.date, s.score
-      FROM scores s
-      JOIN topics t ON s.topic_id = t.id
-      WHERE t.collection_id = ? AND t.subject_id = ? AND t.date IN (${datePlaceholders})
+      SELECT person_id, topic_id, score
+      FROM scores
+      WHERE topic_id IN (${topicIdPlaceholders})
     `;
-    const params = [collectionId, subjectId, ...uniqueDates];
+    const params = topicsToUse.map(t => t.id);
     const scoresRows = await new Promise((resolve, reject) => {
       db.all(query, params, (err, rows) => {
         if (err) reject(err);
@@ -71,20 +67,19 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
       });
     });
     for (const row of scoresRows) {
-      const key = `${row.person_id}|${row.date}`;
+      const key = `${row.person_id}|${row.topic_id}`;
       scoresMap.set(key, row.score);
     }
   }
 
-  // 4. Обработка тега {{ROWS_ПРЕФИКС}} – список учеников
-  let rowsStartRow = null;
-  let rowsStartCol = null;
+  // ROWS – список учеников (тег)
+  let rowsStartRow = null, rowsStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
       if (cell.value === `{{ROWS_${tagPrefix}}}`) {
         rowsStartRow = rowNumber;
         rowsStartCol = colNumber;
-        cell.value = null; // удаляем тег
+        cell.value = null;
       }
     });
   });
@@ -93,52 +88,50 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
       const row = worksheet.getRow(rowsStartRow + i);
       const cell = row.getCell(rowsStartCol);
       cell.value = people[i].full_name;
-      applyCellStyle(cell, 9, 'left', 'middle'); // выравнивание по левому краю
+      applyCellStyle(cell, 9, 'left', 'middle');
     }
   }
 
-  // 5. Обработка тега {{DATES_ПРЕФИКС}} – даты в строке
-  let datesRow = null;
-  let datesStartCol = null;
+  // DATES
+  let datesRow = null, datesStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
       if (cell.value === `{{DATES_${tagPrefix}}}`) {
         datesRow = rowNumber;
         datesStartCol = colNumber;
-        cell.value = null; // удаляем тег
+        cell.value = null;
       }
     });
   });
-  if (datesRow !== null && uniqueDates.length) {
-    for (let idx = 0; idx < uniqueDates.length; idx++) {
+  if (datesRow !== null && topicsToUse.length) {
+    for (let idx = 0; idx < topicsToUse.length; idx++) {
       const col = datesStartCol + idx;
       const cell = worksheet.getRow(datesRow).getCell(col);
-      cell.value = formatDateDDMM(uniqueDates[idx]);
-      applyCellStyle(cell, 7, 'center', 'middle');
+      cell.value = formatDateDDMM(topicsToUse[idx].date);
+      applyCellStyle(cell, 6, 'center', 'middle');
     }
   }
 
-  // 6. Обработка тега {{SCORES_ПРЕФИКС}} – таблица оценок
-  let scoresStartRow = null;
-  let scoresStartCol = null;
+  // SCORES
+  let scoresStartRow = null, scoresStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
       if (cell.value === `{{SCORES_${tagPrefix}}}`) {
         scoresStartRow = rowNumber;
         scoresStartCol = colNumber;
-        cell.value = null; // удаляем тег
+        cell.value = null;
       }
     });
   });
-  if (scoresStartRow !== null && uniqueDates.length) {
+  if (scoresStartRow !== null && topicsToUse.length) {
     for (let i = 0; i < Math.min(people.length, 32); i++) {
       const student = people[i];
       const row = worksheet.getRow(scoresStartRow + i);
-      for (let dateIdx = 0; dateIdx < uniqueDates.length; dateIdx++) {
-        const date = uniqueDates[dateIdx];
-        const key = `${student.id}|${date}`;
+      for (let topicIdx = 0; topicIdx < topicsToUse.length; topicIdx++) {
+        const topic = topicsToUse[topicIdx];
+        const key = `${student.id}|${topic.id}`;
         const score = scoresMap.get(key);
-        const col = scoresStartCol + dateIdx;
+        const col = scoresStartCol + topicIdx;
         const cell = row.getCell(col);
         cell.value = (score !== undefined) ? score : null;
         if (cell.value !== null) {
@@ -156,7 +149,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // 1. Информация о школе и сборе
     const schoolInfo = await new Promise((resolve, reject) => {
       db.get(`
         SELECT s.edu_org, s.head_teacher, c.date_start, c.date_end, c.id as collection_id
@@ -170,7 +162,6 @@ module.exports = async (req, res) => {
     });
     if (!schoolInfo) return res.status(404).json({ error: 'Школа не найдена' });
 
-    // 2. Взвод
     const platoonInfo = await new Promise((resolve, reject) => {
       db.get(`SELECT name FROM platoons WHERE id = ?`, [platoonId], (err, row) => {
         if (err) reject(err);
@@ -179,21 +170,22 @@ module.exports = async (req, res) => {
     });
     if (!platoonInfo) return res.status(404).json({ error: 'Взвод не найден' });
 
-    // 3. Список участников взвода (с id и ФИО)
+    // ⚠️ ИСПРАВЛЕНИЕ: получаем участников ТОЛЬКО для выбранной школы и взвода
     const people = await new Promise((resolve, reject) => {
       db.all(`
         SELECT id, full_name
         FROM collection_people
-        WHERE platoon_id = ?
+        WHERE platoon_id = ? AND school_id = ?
         ORDER BY full_name COLLATE NOCASE
-      `, [platoonId], (err, rows) => {
+      `, [platoonId, schoolId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-    if (!people.length) return res.status(404).json({ error: 'Во взводе нет участников' });
+    if (!people.length) {
+      return res.status(404).json({ error: 'В выбранной школе и взводе нет участников' });
+    }
 
-    // 4. Определяем список предметов с их префиксами
     const subjects = [
       { name: 'Строевая подготовка', prefix: 'STROEVAYA' },
       { name: 'Огневая подготовка', prefix: 'OGNEVAYA' },
@@ -205,21 +197,18 @@ module.exports = async (req, res) => {
       { name: 'Физическая подготовка', prefix: 'FIZO' }
     ];
 
-    // 5. Загружаем шаблон
     const templatePath = path.join(__dirname, '../../templates/contracts/vrem_jurnal.xlsx');
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
-    const worksheet = workbook.getWorksheet(1); // работаем с первым листом
+    const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
       return res.status(500).json({ error: 'В шаблоне нет первого листа' });
     }
 
-    // 6. Обрабатываем каждый предмет
     for (const subj of subjects) {
       await processSubject(worksheet, subj.name, subj.prefix, people, schoolInfo.collection_id);
     }
 
-    // 7. Дополнительные метки (общие)
     worksheet.eachRow(row => {
       row.eachCell(cell => {
         if (cell && cell.value && typeof cell.value === 'string') {
@@ -236,7 +225,6 @@ module.exports = async (req, res) => {
       });
     });
 
-    // 8. Отправляем файл
     const buffer = await workbook.xlsx.writeBuffer();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=Vremenny_jurnal_${Date.now()}.xlsx`);
