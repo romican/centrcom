@@ -77,8 +77,6 @@ window.renderScores = async function() {
       </div>
     </div>
   `;
-
-  // сборы
   const collectionsResp = await fetch('/api/collections');
   const collections = await collectionsResp.json();
   const collectionSelect = document.getElementById('scoresCollectionSelect');
@@ -317,10 +315,9 @@ function renderScoresTable() {
     }
     html += `</tr>`;
   }
-  html += `</tbody></table></div>`;
+  html += `</tbody></td></div>`;
   container.innerHTML = html;
 
-  // Обработчики изменения оценок
   document.querySelectorAll('.score-select').forEach(sel => {
     sel.addEventListener('change', async e => {
       const personId = sel.getAttribute('data-person-id');
@@ -343,7 +340,6 @@ function renderScoresTable() {
     });
   });
 
-  // Кнопки 5/4/3 для ученика
   document.querySelectorAll('.student-grade-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       const personId = btn.getAttribute('data-person-id');
@@ -377,7 +373,52 @@ async function recalcFinalForPerson(personId) {
   }
 }
 
-// Полное обновление данных после массовой операции (без кэша)
+// ========== НОВЫЕ ФУНКЦИИ ДЛЯ ОЖИДАНИЯ ПОЛНОЙ ОТРИСОВКИ ==========
+async function waitForAllScoresRendered(timeoutMs = 5000) {
+  const start = Date.now();
+  const expectedTotal = scores_students.length * scores_topics.length;
+  console.log(`[Отрисовка] Ожидается ${expectedTotal} заполненных селектов`);
+  while (Date.now() - start < timeoutMs) {
+    const selects = document.querySelectorAll('#scoresTable .score-select');
+    let filledCount = 0;
+    for (let sel of selects) {
+      if (sel.value && sel.value !== '') filledCount++;
+    }
+    console.log(`[Отрисовка] Заполнено ${filledCount} из ${expectedTotal}`);
+    if (filledCount >= expectedTotal) {
+      console.log('[Отрисовка] Все селекты заполнены, таблица готова');
+      return true;
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  console.warn('[Отрисовка] Таймаут ожидания заполнения селектов');
+  return false;
+}
+
+async function isScoresComplete(isDelete) {
+  if (isDelete) {
+    for (const s of scores_students) {
+      for (const t of scores_topics) {
+        if (scores_scores[s.id] && scores_scores[s.id][t.id] !== undefined && scores_scores[s.id][t.id] !== '') {
+          return false;
+        }
+      }
+    }
+    return true;
+  } else {
+    let loadedCount = 0;
+    for (const s of scores_students) {
+      for (const t of scores_topics) {
+        if (scores_scores[s.id] && scores_scores[s.id][t.id] !== undefined && scores_scores[s.id][t.id] !== '') {
+          loadedCount++;
+        }
+      }
+    }
+    const expectedTotal = scores_students.length * scores_topics.length;
+    return loadedCount >= expectedTotal;
+  }
+}
+
 async function fullRefreshAfterBulk() {
   if (scores_currentPlatoonId) {
     await loadStudentsForPlatoon();
@@ -386,11 +427,49 @@ async function fullRefreshAfterBulk() {
     await loadAllStudentsOfSchoolAndTopicsForSubject(scores_currentSubjectId === 'all' ? null : scores_currentSubjectId);
   }
   renderScoresTable();
+  await new Promise(r => setTimeout(r, 50));
 }
 
+async function fullRefreshWithRetry(maxAttempts = 15, delayMs = 1000, isDelete = false) {
+  const expectedTotal = scores_students.length * scores_topics.length;
+  console.log(`[Оценки] Ожидается: ${expectedTotal} (isDelete=${isDelete})`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await fullRefreshAfterBulk();
+    const complete = await isScoresComplete(isDelete);
+    console.log(`[Оценки] Попытка ${attempt}: полнота данных = ${complete}`);
+    if (complete) {
+      if (!isDelete) {
+        const rendered = await waitForAllScoresRendered(5000);
+        if (rendered) {
+          console.log('[Оценки] Все оценки загружены и отрисованы');
+          return true;
+        } else {
+          console.log('[Оценки] Данные загружены, но отрисовка не завершена, продолжаем');
+        }
+      } else {
+        console.log('[Оценки] Все оценки удалены');
+        return true;
+      }
+    }
+    if (attempt < maxAttempts) {
+      console.log(`[Оценки] Повтор через ${delayMs} мс...`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  console.warn('[Оценки] Не удалось загрузить все оценки после всех попыток');
+  return false;
+}
+
+// ========== МАССОВЫЕ ОПЕРАЦИИ С ЛОАДЕРОМ ==========
 async function bulkPlatoonOperation(score) {
   if (!scores_currentPlatoonId) { alert('Сначала выберите взвод'); return; }
+  // Проверка: если выбран "Все предметы" — просим выбрать конкретный
+  if (scores_currentSubjectId === 'all') {
+    alert('Для массовой операции выберите конкретный предмет (не "Все предметы")');
+    return;
+  }
   if (score === null && !confirm('Очистить все оценки взвода?')) return;
+  
   showLoader();
   const btns = ['platoonAll5Btn','platoonAll4Btn','platoonAll3Btn','platoonClearBtn'].map(id=>document.getElementById(id));
   btns.forEach(b=>{if(b)b.disabled=true;});
@@ -405,18 +484,21 @@ async function bulkPlatoonOperation(score) {
       const url = scores_currentSubjectId === 'all' ? `/api/scores/platoon/${scores_currentPlatoonId}/clear-all` : `/api/scores/platoon/${scores_currentPlatoonId}?subjectId=${scores_currentSubjectId}`;
       await fetch(url, {method:'DELETE'});
     }
-    // Ждём 2 секунды для завершения всех запросов на сервере
-    await new Promise(r => setTimeout(r, 2000));
-    // Полное обновление данных
-    await fullRefreshAfterBulk();
-    console.log('Массовая операция завершена, таблица обновлена');
-  } catch(e){ alert('Ошибка: '+e.message); }
-  finally { hideLoader(); updatePlatoonButtonsState(); }
+    await new Promise(r => setTimeout(r, 1000));
+    const isDelete = (score === null);
+    await fullRefreshWithRetry(15, 1000, isDelete);
+  } catch(e) {
+    alert('Ошибка: '+e.message);
+  } finally {
+    hideLoader();
+    updatePlatoonButtonsState();
+  }
 }
 
 async function bulkSchoolOperation(score) {
   if (!scores_currentSchoolId) { alert('Сначала выберите школу'); return; }
   if (score === null && !confirm('Очистить все оценки школы?')) return;
+  
   showLoader();
   const btns = ['schoolAll5Btn','schoolAll4Btn','schoolAll3Btn','schoolClearBtn'].map(id=>document.getElementById(id));
   btns.forEach(b=>{if(b)b.disabled=true;});
@@ -430,11 +512,15 @@ async function bulkSchoolOperation(score) {
     } else {
       await fetch(`/api/scores/school/${scores_currentSchoolId}`, {method:'DELETE'});
     }
-    await new Promise(r => setTimeout(r, 2000));
-    await fullRefreshAfterBulk();
-    console.log('Массовая операция для школы завершена, таблица обновлена');
-  } catch(e){ alert('Ошибка: '+e.message); }
-  finally { hideLoader(); btns.forEach(b=>{if(b)b.disabled=false;}); }
+    await new Promise(r => setTimeout(r, 1000));
+    const isDelete = (score === null);
+    await fullRefreshWithRetry(15, 1000, isDelete);
+  } catch(e) {
+    alert('Ошибка: '+e.message);
+  } finally {
+    hideLoader();
+    btns.forEach(b=>{if(b)b.disabled=false;});
+  }
 }
 
 function attachHandlers() {

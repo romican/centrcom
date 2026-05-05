@@ -69,7 +69,6 @@
   filter: brightness(0.95);
 }
 
-/* Цвета кнопок массовых операций */
 .action-btn.grade-5 {
   background: #22c55e;
 }
@@ -93,7 +92,7 @@
   color: white;
 }
 
-/* Правая область – таблица */
+/* Правая область – таблица с прокруткой */
 .scores-main {
   flex: 1;
   background: white;
@@ -103,7 +102,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-x: auto; /* Горизонтальная прокрутка на уровне всей правой панели */
+  overflow-x: auto; /* горизонтальная прокрутка здесь */
 }
 
 .scores-search {
@@ -129,19 +128,19 @@
   background: white;
 }
 
-/* Контейнер с горизонтальной прокруткой (дополнительная страховка) */
+/* Контейнер таблицы тоже с прокруткой для надёжности */
 .scores-table-container {
   overflow-x: auto;
   max-width: 100%;
   position: relative;
 }
 
-/* Сама таблица */
+/* Таблица */
 .scores-table {
   border-collapse: collapse;
   font-size: 0.8rem;
   min-width: 100%;
-  width: max-content; /* позволяет таблице расширяться по содержимому */
+  width: max-content;
 }
 
 .scores-table th,
@@ -229,7 +228,6 @@
   font-size: 0.85rem;
 }
 
-/* Цвета ячеек с оценками */
 .score-cell.score-5 {
   background-color: #22c55e20;
 }
@@ -240,7 +238,6 @@
   background-color: #ef444420;
 }
 
-/* Номер строки */
 .number-cell {
   width: 40px;
   text-align: center;
@@ -248,7 +245,6 @@
   background: #f1f5f9;
 }
 
-/* Лоадер */
 .scores-loader {
   position: absolute;
   top: 0;
@@ -275,7 +271,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* ========== ТЁМНАЯ ТЕМА ========== */
+/* Тёмная тема */
 body.dark-theme .scores-sidebar,
 body.dark-theme .scores-main {
   background: #1e293b;
