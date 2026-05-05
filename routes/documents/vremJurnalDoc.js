@@ -31,6 +31,7 @@ function applyCellStyle(cell, fontSize, horizontalAlign = 'center', verticalAlig
 async function processSubject(worksheet, subjectName, tagPrefix, people, collectionId) {
   const subjectId = await getSubjectIdByName(subjectName);
   if (!subjectId) {
+    // Только это сообщение оставляем, потому что оно указывает на реальную проблему
     console.warn(`Предмет "${subjectName}" не найден в БД, пропускаем.`);
     return;
   }
@@ -48,7 +49,7 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
     });
   });
   const topicsToUse = topics.slice(0, 8);
-  console.log(`Предмет "${subjectName}": найдено ${topicsToUse.length} тем(ы) для вставки.`);
+  // Логирование убрано
 
   // Оценки
   const scoresMap = new Map();
@@ -170,7 +171,6 @@ module.exports = async (req, res) => {
     });
     if (!platoonInfo) return res.status(404).json({ error: 'Взвод не найден' });
 
-    // ⚠️ ИСПРАВЛЕНИЕ: получаем участников ТОЛЬКО для выбранной школы и взвода
     const people = await new Promise((resolve, reject) => {
       db.all(`
         SELECT id, full_name

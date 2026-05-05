@@ -28,6 +28,7 @@ app.use('/api', platoonsRoutes);
 app.use('/api', topicsRoutes);
 app.use('/api', scoresRoutes);
 
-app.listen(PORT, () => {
-  console.log(`✅ Сервер запущен на http://localhost:${PORT}`);
+// Замените на это: ( 192.168.0.125 )
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Сервер запущен и доступен в локальной сети`);
 });
