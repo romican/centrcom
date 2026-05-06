@@ -1,6 +1,6 @@
-// ========== РАЗДЕЛ ОЦЕНКИ ==========
+// ========== РАЗДЕЛ ОЦЕНКИ С ИТОГОВЫМИ ОЦЕНКАМИ ==========
 let scores_currentCollectionId = null;
-let scores_currentSchoolId = null;
+let scores_currentSchoolId = null;       // null означает "Все школы"
 let scores_currentSchoolName = '';
 let scores_currentPlatoonId = null;
 let scores_currentSubjectId = 'all';
@@ -10,6 +10,8 @@ let scores_topics = [];
 let scores_scores = {};
 let scores_final = {};
 let scores_searchTerm = '';
+
+let scores_allSubjects = [];
 
 function showLoader() {
   const container = document.getElementById('scoresTableContainer');
@@ -42,6 +44,25 @@ function updatePlatoonButtonsState() {
   });
 }
 
+function updateSchoolButtonsState() {
+  const btns = ['schoolAll5Btn', 'schoolAll4Btn', 'schoolAll3Btn', 'schoolClearBtn'];
+  const isSchoolSelected = scores_currentSchoolId !== null && scores_currentSchoolId !== '';
+  btns.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.disabled = !isSchoolSelected;
+      btn.style.opacity = isSchoolSelected ? '1' : '0.5';
+      btn.style.cursor = isSchoolSelected ? 'pointer' : 'not-allowed';
+    }
+  });
+}
+
+async function loadAllSubjects() {
+  if (scores_allSubjects.length) return;
+  const resp = await fetch('/api/subjects');
+  scores_allSubjects = await resp.json();
+}
+
 window.renderScores = async function() {
   window.contentBody.innerHTML = `
     <div class="scores-layout">
@@ -61,10 +82,14 @@ window.renderScores = async function() {
           </div>
           <div class="action-group">
             <div class="action-group-title">Для школы (по ВСЕМ предметам)</div>
-            <button id="schoolAll5Btn" class="btn action-btn grade-5">Всем 5</button>
-            <button id="schoolAll4Btn" class="btn action-btn grade-4">Всем 4</button>
-            <button id="schoolAll3Btn" class="btn action-btn grade-3">Всем 3</button>
-            <button id="schoolClearBtn" class="btn action-btn danger">Очистить все оценки</button>
+            <button id="schoolAll5Btn" class="btn action-btn grade-5" disabled>Всем 5</button>
+            <button id="schoolAll4Btn" class="btn action-btn grade-4" disabled>Всем 4</button>
+            <button id="schoolAll3Btn" class="btn action-btn grade-3" disabled>Всем 3</button>
+            <button id="schoolClearBtn" class="btn action-btn danger" disabled>Очистить все оценки</button>
+          </div>
+          <div class="action-group">
+            <button id="calcFinalBtn" class="btn action-btn calc-final" style="background: #106061;">Рассчитать итоговые оценки</button>
+            <button id="exportExcelBtn" class="btn action-btn export-excel" style="background: #2c3e50;">Выгрузить в Excel</button>
           </div>
         </div>
       </div>
@@ -77,6 +102,8 @@ window.renderScores = async function() {
       </div>
     </div>
   `;
+
+  await loadAllSubjects();
   const collectionsResp = await fetch('/api/collections');
   const collections = await collectionsResp.json();
   const collectionSelect = document.getElementById('scoresCollectionSelect');
@@ -119,6 +146,7 @@ window.renderScores = async function() {
       document.getElementById('scoresTableContainer').innerHTML = '<p style="text-align:center; padding:40px;">Выберите сбор</p>';
     }
     updatePlatoonButtonsState();
+    updateSchoolButtonsState();
   });
 
   document.getElementById('scoresSearchInput').addEventListener('input', e => {
@@ -126,26 +154,23 @@ window.renderScores = async function() {
     renderScoresTable();
   });
 
-  try {
-    const subjectsResp = await fetch('/api/subjects');
-    const allSubjects = await subjectsResp.json();
-    const subjectSelect = document.getElementById('scoresSubjectSelect');
-    subjectSelect.innerHTML = '<option value="all">-- Все предметы --</option>' +
-      allSubjects.map(s => `<option value="${s.id}">${window.escapeHtml(s.name)}</option>`).join('');
-    subjectSelect.value = 'all';
-    scores_currentSubjectId = 'all';
-    subjectSelect.addEventListener('change', async e => {
-      const val = e.target.value;
-      scores_currentSubjectId = val === 'all' ? 'all' : parseInt(val);
-      scores_currentSubjectName = val === 'all' ? 'Все предметы' : subjectSelect.options[subjectSelect.selectedIndex].text;
-      if (scores_currentPlatoonId) {
-        await loadStudentsForPlatoon();
-        await loadTopicsForSubjectOrAll();
-      } else if (scores_currentSchoolId) {
-        await loadAllStudentsOfSchoolAndTopicsForSubject(scores_currentSubjectId === 'all' ? null : scores_currentSubjectId);
-      }
-    });
-  } catch(e) { console.error(e); }
+  const subjectSelect = document.getElementById('scoresSubjectSelect');
+  subjectSelect.innerHTML = '<option value="all">-- Все предметы --</option>' +
+    scores_allSubjects.map(s => `<option value="${s.id}">${window.escapeHtml(s.name)}</option>`).join('');
+  subjectSelect.value = 'all';
+  scores_currentSubjectId = 'all';
+  subjectSelect.addEventListener('change', async e => {
+    const val = e.target.value;
+    scores_currentSubjectId = val === 'all' ? 'all' : parseInt(val);
+    scores_currentSubjectName = val === 'all' ? 'Все предметы' : subjectSelect.options[subjectSelect.selectedIndex].text;
+    await loadStudentsByCurrentFilter();
+    await loadTopicsOrFinalForDisplay();
+  });
+
+  document.getElementById('calcFinalBtn').addEventListener('click', computeAndSaveFinalScores);
+  document.getElementById('exportExcelBtn').addEventListener('click', () => {
+    alert('Функция выгрузки в Excel будет добавлена позже.');
+  });
 };
 
 async function loadSchools() {
@@ -158,110 +183,147 @@ async function loadSchools() {
     schoolSelect.disabled = true;
     return;
   }
-  schoolSelect.innerHTML = '<option value="">-- Выберите школу --</option>' +
-    schools.map(s => `<option value="${s.id}">${window.escapeHtml(s.edu_org)} (${s.people_count || 0} чел.)</option>`).join('');
+  let options = '<option value="all">-- Все школы --</option>';
+  options += schools.map(s => `<option value="${s.id}">${window.escapeHtml(s.edu_org)} (${s.people_count || 0} чел.)</option>`).join('');
+  schoolSelect.innerHTML = options;
   schoolSelect.disabled = false;
-  schoolSelect.addEventListener('change', async e => {
-    const id = e.target.value;
-    if (id) {
-      scores_currentSchoolId = parseInt(id);
-      scores_currentSchoolName = schools.find(s => s.id == id)?.edu_org || '';
-    } else {
-      scores_currentSchoolId = null;
-    }
-    scores_currentPlatoonId = null;
-    scores_currentSubjectId = 'all';
-    document.getElementById('scoresSubjectSelect').value = 'all';
-    if (scores_currentSchoolId) {
-      await loadPlatoons();
-      await loadAllStudentsOfSchoolAndTopicsForSubject(null);
-    } else {
-      document.getElementById('scoresPlatoonSelect').innerHTML = '<option value="">-- Выберите школу --</option>';
-      document.getElementById('scoresPlatoonSelect').disabled = true;
-      document.getElementById('scoresTableContainer').innerHTML = '<p style="text-align:center; padding:40px;">Выберите школу</p>';
-    }
-    updatePlatoonButtonsState();
-  });
+  schoolSelect.removeEventListener('change', schoolChangeHandler);
+  schoolSelect.addEventListener('change', schoolChangeHandler);
+}
+
+async function schoolChangeHandler(e) {
+  const id = e.target.value;
+  if (id === 'all') {
+    scores_currentSchoolId = null;
+    scores_currentSchoolName = 'Все школы';
+  } else if (id) {
+    scores_currentSchoolId = parseInt(id);
+    const resp = await fetch(`/api/collections/${scores_currentCollectionId}/schools`);
+    const schools = await resp.json();
+    const found = schools.find(s => s.id == id);
+    scores_currentSchoolName = found ? found.edu_org : '';
+  } else {
+    scores_currentSchoolId = null;
+    scores_currentSchoolName = '';
+  }
+  scores_currentPlatoonId = null;
+  scores_currentSubjectId = 'all';
+  document.getElementById('scoresSubjectSelect').value = 'all';
+  await loadPlatoons();
+  await loadStudentsByCurrentFilter();
+  await loadTopicsOrFinalForDisplay();
+  updatePlatoonButtonsState();
+  updateSchoolButtonsState();
 }
 
 async function loadPlatoons() {
-  if (!scores_currentSchoolId) return;
-  const resp = await fetch(`/api/schools/${scores_currentSchoolId}/platoons`);
-  const platoons = await resp.json();
   const select = document.getElementById('scoresPlatoonSelect');
-  if (!platoons.length) {
-    select.innerHTML = '<option value="">-- Нет взводов --</option>';
-    select.disabled = true;
-    await loadAllStudentsOfSchoolAndTopicsForSubject(scores_currentSubjectId === 'all' ? null : scores_currentSubjectId);
-    updatePlatoonButtonsState();
-    return;
-  }
-  select.innerHTML = '<option value="">-- Все взводы --</option>' +
-    platoons.map(p => `<option value="${p.id}">${window.escapeHtml(p.name)} (${p.people_count || 0} чел.)</option>`).join('');
-  select.disabled = false;
-  select.addEventListener('change', async e => {
-    const val = e.target.value;
-    if (!val) {
-      scores_currentPlatoonId = null;
-      await loadAllStudentsOfSchoolAndTopicsForSubject(scores_currentSubjectId === 'all' ? null : scores_currentSubjectId);
-    } else {
-      scores_currentPlatoonId = parseInt(val);
-      await loadStudentsForPlatoon();
-      await loadTopicsForSubjectOrAll();
+  if (scores_currentSchoolId === null) {
+    if (!scores_currentCollectionId) return;
+    const resp = await fetch(`/api/collections/${scores_currentCollectionId}/platoons`);
+    const platoons = await resp.json();
+    if (!platoons.length) {
+      select.innerHTML = '<option value="">-- Нет взводов в этом сборе --</option>';
+      select.disabled = true;
+      return;
     }
-    updatePlatoonButtonsState();
-  });
+    select.innerHTML = '<option value="">-- Все взводы --</option>' +
+      platoons.map(p => `<option value="${p.id}">${window.escapeHtml(p.name)} (${p.people_count || 0} чел.)</option>`).join('');
+    select.disabled = false;
+  } else {
+    if (!scores_currentSchoolId) return;
+    const resp = await fetch(`/api/schools/${scores_currentSchoolId}/platoons`);
+    const platoons = await resp.json();
+    if (!platoons.length) {
+      select.innerHTML = '<option value="">-- Нет взводов в этой школе --</option>';
+      select.disabled = true;
+      return;
+    }
+    select.innerHTML = '<option value="">-- Все взводы --</option>' +
+      platoons.map(p => `<option value="${p.id}">${window.escapeHtml(p.name)} (${p.people_count || 0} чел.)</option>`).join('');
+    select.disabled = false;
+  }
+  select.removeEventListener('change', platoonChangeHandler);
+  select.addEventListener('change', platoonChangeHandler);
+}
+
+async function platoonChangeHandler(e) {
+  const val = e.target.value;
+  if (!val) {
+    scores_currentPlatoonId = null;
+  } else {
+    scores_currentPlatoonId = parseInt(val);
+  }
+  await loadStudentsByCurrentFilter();
+  await loadTopicsOrFinalForDisplay();
   updatePlatoonButtonsState();
 }
 
-async function loadStudentsForPlatoon() {
-  if (!scores_currentPlatoonId || !scores_currentSchoolId) return;
-  const resp = await fetch(`/api/scores/platoon/${scores_currentPlatoonId}/students?schoolId=${scores_currentSchoolId}`);
-  scores_students = await resp.json();
-}
-
-async function loadAllStudentsOfSchoolAndTopicsForSubject(subjectId) {
-  if (!scores_currentSchoolId) return;
-  const resp = await fetch(`/api/schools/${scores_currentSchoolId}/people`);
-  scores_students = await resp.json();
-  if (subjectId === null) {
-    await loadAllTopicsOfCollection();
+async function loadStudentsByCurrentFilter() {
+  if (!scores_currentCollectionId) return;
+  if (scores_currentSchoolId === null) {
+    const resp = await fetch(`/api/collections/${scores_currentCollectionId}/participants`);
+    let allParticipants = await resp.json();
+    if (scores_currentPlatoonId) {
+      allParticipants = allParticipants.filter(p => p.platoon_id === scores_currentPlatoonId);
+    }
+    scores_students = allParticipants.map(p => ({
+      id: p.id,
+      full_name: p.full_name,
+      school_name: p.school_name || p.organization,
+      organization: p.organization
+    }));
   } else {
-    const topicsResp = await fetch(`/api/topics/${scores_currentCollectionId}`);
-    const data = await topicsResp.json();
-    scores_topics = data.topics.filter(t => t.subject_id == subjectId);
-    await loadScoresAndFinalsForStudents();
+    if (!scores_currentSchoolId) return;
+    let students = [];
+    if (scores_currentPlatoonId) {
+      const resp = await fetch(`/api/scores/platoon/${scores_currentPlatoonId}/students?schoolId=${scores_currentSchoolId}`);
+      students = await resp.json();
+    } else {
+      const resp = await fetch(`/api/schools/${scores_currentSchoolId}/people`);
+      students = await resp.json();
+    }
+    scores_students = students.map(s => ({
+      id: s.id,
+      full_name: s.full_name,
+      school_name: scores_currentSchoolName,
+      organization: s.organization || scores_currentSchoolName
+    }));
   }
 }
 
-async function loadAllTopicsOfCollection() {
+async function loadTopicsOrFinalForDisplay() {
+  if (scores_currentSubjectId === 'all') {
+    await loadFinalScoresForStudents();
+    renderScoresTable();
+  } else {
+    await loadTopicsForSubject();
+    await loadScoresForStudents();
+    renderScoresTable();
+  }
+}
+
+async function loadTopicsForSubject() {
+  if (!scores_currentCollectionId || !scores_currentSubjectId) return;
   const resp = await fetch(`/api/topics/${scores_currentCollectionId}`);
   const data = await resp.json();
-  scores_topics = data.topics;
-  await loadScoresAndFinalsForStudents();
+  scores_topics = data.topics.filter(t => t.subject_id == scores_currentSubjectId);
 }
 
-async function loadTopicsForSubjectOrAll() {
-  if (scores_currentSubjectId === 'all') {
-    await loadAllTopicsOfCollection();
-  } else {
-    const resp = await fetch(`/api/topics/${scores_currentCollectionId}`);
-    const data = await resp.json();
-    scores_topics = data.topics.filter(t => t.subject_id == scores_currentSubjectId);
-    await loadScoresAndFinalsForStudents();
-  }
-}
-
-async function loadScoresAndFinalsForStudents() {
+async function loadScoresForStudents() {
   scores_scores = {};
-  scores_final = {};
   for (const s of scores_students) {
     const sc = await fetch(`/api/scores/student/${s.id}`).then(r => r.json());
     scores_scores[s.id] = sc;
+  }
+}
+
+async function loadFinalScoresForStudents() {
+  scores_final = {};
+  for (const s of scores_students) {
     const fin = await fetch(`/api/scores/student/${s.id}/final`).then(r => r.json());
     scores_final[s.id] = fin;
   }
-  renderScoresTable();
 }
 
 function renderScoresTable() {
@@ -270,206 +332,212 @@ function renderScoresTable() {
     container.innerHTML = '<p style="text-align:center; padding:40px;">Нет учеников</p>';
     return;
   }
-  if (!scores_topics.length) {
-    container.innerHTML = '<p style="text-align:center; padding:40px;">Для выбранного фильтра нет тем занятий</p>';
-    return;
-  }
 
   let filtered = scores_students;
   if (scores_searchTerm) filtered = scores_students.filter(s => s.full_name.toLowerCase().includes(scores_searchTerm));
 
-  let html = '<div class="scores-table-wrapper"><table class="scores-table"><thead>';
-  html += `<tr><th rowspan="2">№</th><th rowspan="2">Действия</th><th rowspan="2">Ученик</th><th rowspan="2">Школа</th>`;
-  html += `<th colspan="${scores_topics.length}" class="subject-header">${window.escapeHtml(scores_currentSubjectName)}</th>`;
-  html += `</tr>`;
-  html += `<tr>`;
-  for (const t of scores_topics) {
-    const short = t.name.length > 30 ? t.name.slice(0,27)+'...' : t.name;
-    html += `<th title="${window.escapeHtml(t.subject_name)}: ${window.escapeHtml(t.name)} (${window.formatDate(t.date)})">${window.escapeHtml(short)}</th>`;
+  if (scores_currentSubjectId === 'all') {
+    renderAllSubjectsTable(container, filtered);
+  } else {
+    renderSubjectTable(container, filtered);
   }
-  html += `</tr></thead><tbody>`;
+}
 
-  for (let idx = 0; idx < filtered.length; idx++) {
-    const st = filtered[idx];
+function renderAllSubjectsTable(container, students) {
+  if (!scores_allSubjects.length) return;
+  let html = '<div class="scores-table-wrapper"><table class="scores-table all-subjects-table"><thead><tr>';
+  html += '<th>№</th><th>Ученик</th>';
+  for (const subj of scores_allSubjects) {
+    html += `<th>${window.escapeHtml(subj.name)}</th>`;
+  }
+  html += '<th style="background-color:#106061; color:white;">Итоговая за сборы</th>';
+  html += '</tr></thead><tbody>';
+
+  for (let idx = 0; idx < students.length; idx++) {
+    const st = students[idx];
+    const finals = scores_final[st.id] || {};
+    let sum = 0, count = 0;
     html += `<tr data-person-id="${st.id}">`;
     html += `<td class="number-cell">${idx+1}</td>`;
-    html += `<td class="actions-cell"><div class="student-actions">
+    html += `<td class="student-name">${window.escapeHtml(st.full_name)}</td>`;
+    for (const subj of scores_allSubjects) {
+      const score = finals[subj.id];
+      if (score) {
+        sum += score;
+        count++;
+      }
+      html += `<td class="final-score-cell-light">${score !== undefined ? score : '—'}</td>`;
+    }
+    const overall = count ? Math.round(sum / count) : '—';
+    html += `<td class="overall-final-cell" style="background-color:#106061; color:white;">${overall}</td>`;
+    html += `</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
+function renderSubjectTable(container, students) {
+  if (!scores_topics.length) {
+    container.innerHTML = '<p style="text-align:center; padding:40px;">Для выбранного предмета нет тем</p>';
+    return;
+  }
+  const shortTopics = scores_topics.map(t => {
+    let short = t.name;
+    if (short.length > 25) short = short.slice(0, 22) + '...';
+    return short;
+  });
+
+  let html = '<div class="scores-table-wrapper" style="overflow-x: auto;">';
+  html += '<table class="scores-table subject-table" style="width: 100%; border-collapse: collapse;">';
+  html += '<thead><tr>';
+  html += '<th style="min-width: 40px;">№</th>';
+  html += '<th style="min-width: 90px;">Действия</th>';
+  html += '<th style="min-width: 220px; text-align: left;">Ученик</th>';
+  html += '<th style="min-width: 180px; text-align: left;">Школа</th>';
+  for (let i = 0; i < shortTopics.length; i++) {
+    html += `<th style="min-width: 85px;" title="${window.escapeHtml(scores_topics[i].subject_name)}: ${window.escapeHtml(scores_topics[i].name)} (${window.formatDate(scores_topics[i].date)})">${window.escapeHtml(shortTopics[i])}</th>`;
+  }
+  html += '<th style="min-width: 85px;" class="final-score-header">Итоговая</th>';
+  html += '</tr></thead><tbody>';
+
+  for (let idx = 0; idx < students.length; idx++) {
+    const st = students[idx];
+    const finalScore = (scores_final[st.id] && scores_final[st.id][scores_currentSubjectId]) || '';
+    const studentSchool = st.school_name || st.organization || '—';
+    html += `<tr data-person-id="${st.id}">`;
+    html += `<td class="number-cell" style="text-align: center;">${idx+1}</td>`;
+    html += `<td class="actions-cell" style="text-align: center;"><div class="student-actions" style="display: flex; gap: 4px; justify-content: center;">
       <button class="student-grade-btn grade-5" data-person-id="${st.id}" data-grade="5">5</button>
       <button class="student-grade-btn grade-4" data-person-id="${st.id}" data-grade="4">4</button>
       <button class="student-grade-btn grade-3" data-person-id="${st.id}" data-grade="3">3</button>
     </div></td>`;
-    html += `<td class="student-name">${window.escapeHtml(st.full_name)}</td>`;
-    html += `<td class="school-name">${window.escapeHtml(scores_currentSchoolName)}</td>`;
+    html += `<td class="student-name" style="white-space: nowrap;">${window.escapeHtml(st.full_name)}</td>`;
+    html += `<td class="school-name" style="white-space: nowrap;">${window.escapeHtml(studentSchool)}</td>`;
     for (const topic of scores_topics) {
-      const score = scores_scores[st.id][topic.id] || '';
+      const score = (scores_scores[st.id] && scores_scores[st.id][topic.id]) || '';
       let cls = '';
       if (score === 5) cls = 'score-5';
       else if (score === 4) cls = 'score-4';
       else if (score === 3) cls = 'score-3';
-      html += `<td class="score-cell ${cls}">
-        <select class="score-select" data-person-id="${st.id}" data-topic-id="${topic.id}">
-          <option value="">—</option>
-          ${[1,2,3,4,5].map(v => `<option value="${v}" ${score == v ? 'selected' : ''}>${v}</option>`).join('')}
-        </select>
-      </td>`;
+      html += `<td class="score-cell-text ${cls}" style="text-align: center;">${score || '—'}</td>`;
     }
+    html += `<td class="final-score-cell-light" style="text-align: center;">${finalScore || '—'}</td>`;
     html += `</tr>`;
   }
-  html += `</tbody></td></div>`;
+  html += `</tbody></table></div>`;
   container.innerHTML = html;
+  attachStudentButtons();
+}
 
-  document.querySelectorAll('.score-select').forEach(sel => {
-    sel.addEventListener('change', async e => {
-      const personId = sel.getAttribute('data-person-id');
-      const topicId = sel.getAttribute('data-topic-id');
-      let score = sel.value ? parseInt(sel.value) : null;
-      if (score && (score<1 || score>5)) {
-        alert('Оценка от 1 до 5');
-        sel.value = '';
-        score = null;
-      }
-      await fetch('/api/scores/update', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({person_id:personId, topic_id:topicId, score})
-      });
-      if (score === null) delete scores_scores[personId][topicId];
-      else scores_scores[personId][topicId] = score;
-      await recalcFinalForPerson(personId);
-      renderScoresTable();
-    });
-  });
-
+function attachStudentButtons() {
   document.querySelectorAll('.student-grade-btn').forEach(btn => {
-    btn.addEventListener('click', async e => {
-      const personId = btn.getAttribute('data-person-id');
-      const grade = parseInt(btn.getAttribute('data-grade'));
-      for (const topic of scores_topics) {
-        if (scores_scores[personId][topic.id] !== grade) {
-          await fetch('/api/scores/update', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({person_id:personId, topic_id:topic.id, score:grade})
-          });
-          scores_scores[personId][topic.id] = grade;
-        }
-      }
-      await recalcFinalForPerson(personId);
-      renderScoresTable();
-    });
+    btn.removeEventListener('click', handleStudentGrade);
+    btn.addEventListener('click', handleStudentGrade);
   });
 }
 
-async function recalcFinalForPerson(personId) {
-  const subjectIds = [...new Set(scores_topics.map(t=>t.subject_id))];
-  for (const sid of subjectIds) {
-    await fetch('/api/scores/calculate-final', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({person_id:personId, subject_id:sid})
-    });
-    const finals = await fetch(`/api/scores/student/${personId}/final`).then(r=>r.json());
-    scores_final[personId] = finals;
+async function handleStudentGrade(e) {
+  const btn = e.currentTarget;
+  const personId = btn.getAttribute('data-person-id');
+  const grade = parseInt(btn.getAttribute('data-grade'));
+  if (scores_currentSubjectId === 'all') {
+    alert('Массовое проставление оценок доступно только для конкретного предмета.');
+    return;
   }
-}
-
-// ========== НОВЫЕ ФУНКЦИИ ДЛЯ ОЖИДАНИЯ ПОЛНОЙ ОТРИСОВКИ ==========
-async function waitForAllScoresRendered(timeoutMs = 5000) {
-  const start = Date.now();
-  const expectedTotal = scores_students.length * scores_topics.length;
-  console.log(`[Отрисовка] Ожидается ${expectedTotal} заполненных селектов`);
-  while (Date.now() - start < timeoutMs) {
-    const selects = document.querySelectorAll('#scoresTable .score-select');
-    let filledCount = 0;
-    for (let sel of selects) {
-      if (sel.value && sel.value !== '') filledCount++;
+  for (const topic of scores_topics) {
+    if (scores_scores[personId][topic.id] !== grade) {
+      await fetch('/api/scores/update', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({person_id:personId, topic_id:topic.id, score:grade})
+      });
+      scores_scores[personId][topic.id] = grade;
     }
-    console.log(`[Отрисовка] Заполнено ${filledCount} из ${expectedTotal}`);
-    if (filledCount >= expectedTotal) {
-      console.log('[Отрисовка] Все селекты заполнены, таблица готова');
-      return true;
-    }
-    await new Promise(r => setTimeout(r, 200));
   }
-  console.warn('[Отрисовка] Таймаут ожидания заполнения селектов');
-  return false;
-}
-
-async function isScoresComplete(isDelete) {
-  if (isDelete) {
-    for (const s of scores_students) {
-      for (const t of scores_topics) {
-        if (scores_scores[s.id] && scores_scores[s.id][t.id] !== undefined && scores_scores[s.id][t.id] !== '') {
-          return false;
-        }
-      }
-    }
-    return true;
-  } else {
-    let loadedCount = 0;
-    for (const s of scores_students) {
-      for (const t of scores_topics) {
-        if (scores_scores[s.id] && scores_scores[s.id][t.id] !== undefined && scores_scores[s.id][t.id] !== '') {
-          loadedCount++;
-        }
-      }
-    }
-    const expectedTotal = scores_students.length * scores_topics.length;
-    return loadedCount >= expectedTotal;
-  }
-}
-
-async function fullRefreshAfterBulk() {
-  if (scores_currentPlatoonId) {
-    await loadStudentsForPlatoon();
-    await loadTopicsForSubjectOrAll();
-  } else if (scores_currentSchoolId) {
-    await loadAllStudentsOfSchoolAndTopicsForSubject(scores_currentSubjectId === 'all' ? null : scores_currentSubjectId);
-  }
+  await recalcSingleFinal(personId, scores_currentSubjectId);
   renderScoresTable();
-  await new Promise(r => setTimeout(r, 50));
 }
 
-async function fullRefreshWithRetry(maxAttempts = 15, delayMs = 1000, isDelete = false) {
-  const expectedTotal = scores_students.length * scores_topics.length;
-  console.log(`[Оценки] Ожидается: ${expectedTotal} (isDelete=${isDelete})`);
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await fullRefreshAfterBulk();
-    const complete = await isScoresComplete(isDelete);
-    console.log(`[Оценки] Попытка ${attempt}: полнота данных = ${complete}`);
-    if (complete) {
-      if (!isDelete) {
-        const rendered = await waitForAllScoresRendered(5000);
-        if (rendered) {
-          console.log('[Оценки] Все оценки загружены и отрисованы');
-          return true;
-        } else {
-          console.log('[Оценки] Данные загружены, но отрисовка не завершена, продолжаем');
+async function recalcSingleFinal(personId, subjectId) {
+  const resp = await fetch('/api/scores/calculate-final', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({person_id:personId, subject_id:subjectId})
+  });
+  const data = await resp.json();
+  if (!scores_final[personId]) scores_final[personId] = {};
+  scores_final[personId][subjectId] = data.finalScore;
+}
+
+async function computeAndSaveFinalScores() {
+  if (!scores_currentCollectionId || !scores_students.length) {
+    alert('Сначала выберите сбор, школу и взвод');
+    return;
+  }
+  showLoader();
+  try {
+    const topicsResp = await fetch(`/api/topics/${scores_currentCollectionId}`);
+    const { topics: allTopics } = await topicsResp.json();
+    const topicsBySubject = {};
+    for (const t of allTopics) {
+      if (!topicsBySubject[t.subject_id]) topicsBySubject[t.subject_id] = [];
+      topicsBySubject[t.subject_id].push(t);
+    }
+
+    const allScores = {};
+    for (const st of scores_students) {
+      const sc = await fetch(`/api/scores/student/${st.id}`).then(r => r.json());
+      allScores[st.id] = sc;
+    }
+
+    const updates = [];
+    for (const st of scores_students) {
+      for (const subject of scores_allSubjects) {
+        const topics = topicsBySubject[subject.id] || [];
+        if (!topics.length) continue;
+        let sum = 0, count = 0;
+        for (const topic of topics) {
+          const score = allScores[st.id][topic.id];
+          if (score && score >= 1 && score <= 5) {
+            sum += score;
+            count++;
+          }
         }
-      } else {
-        console.log('[Оценки] Все оценки удалены');
-        return true;
+        if (count === 0) continue;
+        const avg = sum / count;
+        const finalScore = Math.round(avg);
+        updates.push({ person_id: st.id, subject_id: subject.id, score: finalScore });
       }
     }
-    if (attempt < maxAttempts) {
-      console.log(`[Оценки] Повтор через ${delayMs} мс...`);
-      await new Promise(r => setTimeout(r, delayMs));
+
+    if (updates.length) {
+      const batchResp = await fetch('/api/scores/batch-final', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      if (!batchResp.ok) throw new Error('Ошибка при сохранении итоговых оценок');
+      await loadFinalScoresForStudents();
+      renderScoresTable();
+      alert(`Рассчитано и сохранено ${updates.length} итоговых оценок.`);
+    } else {
+      alert('Нет данных для расчёта итоговых оценок.');
     }
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при расчёте итоговых оценок: ' + err.message);
+  } finally {
+    hideLoader();
   }
-  console.warn('[Оценки] Не удалось загрузить все оценки после всех попыток');
-  return false;
 }
 
-// ========== МАССОВЫЕ ОПЕРАЦИИ С ЛОАДЕРОМ ==========
 async function bulkPlatoonOperation(score) {
   if (!scores_currentPlatoonId) { alert('Сначала выберите взвод'); return; }
-  // Проверка: если выбран "Все предметы" — просим выбрать конкретный
   if (scores_currentSubjectId === 'all') {
     alert('Для массовой операции выберите конкретный предмет (не "Все предметы")');
     return;
   }
   if (score === null && !confirm('Очистить все оценки взвода?')) return;
-  
   showLoader();
   const btns = ['platoonAll5Btn','platoonAll4Btn','platoonAll3Btn','platoonClearBtn'].map(id=>document.getElementById(id));
   btns.forEach(b=>{if(b)b.disabled=true;});
@@ -478,27 +546,27 @@ async function bulkPlatoonOperation(score) {
       await fetch('/api/scores/bulk-platoon', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({platoonId:scores_currentPlatoonId, score, subjectId: scores_currentSubjectId === 'all' ? null : scores_currentSubjectId})
+        body:JSON.stringify({platoonId:scores_currentPlatoonId, score, subjectId: scores_currentSubjectId})
       });
     } else {
-      const url = scores_currentSubjectId === 'all' ? `/api/scores/platoon/${scores_currentPlatoonId}/clear-all` : `/api/scores/platoon/${scores_currentPlatoonId}?subjectId=${scores_currentSubjectId}`;
+      const url = `/api/scores/platoon/${scores_currentPlatoonId}?subjectId=${scores_currentSubjectId}`;
       await fetch(url, {method:'DELETE'});
     }
     await new Promise(r => setTimeout(r, 1000));
-    const isDelete = (score === null);
-    await fullRefreshWithRetry(15, 1000, isDelete);
-  } catch(e) {
-    alert('Ошибка: '+e.message);
-  } finally {
-    hideLoader();
-    updatePlatoonButtonsState();
-  }
+    await loadScoresForStudents();
+    await loadFinalScoresForStudents();
+    renderScoresTable();
+  } catch(e) { alert('Ошибка: '+e.message); }
+  finally { hideLoader(); updatePlatoonButtonsState(); }
 }
 
 async function bulkSchoolOperation(score) {
+  if (scores_currentSchoolId === null) {
+    alert('Массовая операция для школы недоступна в режиме "Все школы". Выберите конкретную школу.');
+    return;
+  }
   if (!scores_currentSchoolId) { alert('Сначала выберите школу'); return; }
   if (score === null && !confirm('Очистить все оценки школы?')) return;
-  
   showLoader();
   const btns = ['schoolAll5Btn','schoolAll4Btn','schoolAll3Btn','schoolClearBtn'].map(id=>document.getElementById(id));
   btns.forEach(b=>{if(b)b.disabled=true;});
@@ -513,14 +581,11 @@ async function bulkSchoolOperation(score) {
       await fetch(`/api/scores/school/${scores_currentSchoolId}`, {method:'DELETE'});
     }
     await new Promise(r => setTimeout(r, 1000));
-    const isDelete = (score === null);
-    await fullRefreshWithRetry(15, 1000, isDelete);
-  } catch(e) {
-    alert('Ошибка: '+e.message);
-  } finally {
-    hideLoader();
-    btns.forEach(b=>{if(b)b.disabled=false;});
-  }
+    await loadScoresForStudents();
+    await loadFinalScoresForStudents();
+    renderScoresTable();
+  } catch(e) { alert('Ошибка: '+e.message); }
+  finally { hideLoader(); btns.forEach(b=>{if(b)b.disabled=false;}); updateSchoolButtonsState(); }
 }
 
 function attachHandlers() {
@@ -535,4 +600,4 @@ function attachHandlers() {
   if(s3) s3.onclick=()=>bulkSchoolOperation(3);
   if(sc) sc.onclick=()=>bulkSchoolOperation(null);
 }
-setInterval(()=>{ attachHandlers(); updatePlatoonButtonsState(); }, 500);
+setInterval(()=>{ attachHandlers(); updatePlatoonButtonsState(); updateSchoolButtonsState(); }, 500);

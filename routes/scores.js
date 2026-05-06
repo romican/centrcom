@@ -245,5 +245,31 @@ router.post('/scores/calculate-final', (req, res) => {
     }
   });
 });
-
+// Пакетное сохранение итоговых оценок
+router.post('/scores/batch-final', (req, res) => {
+  const { updates } = req.body; // массив { person_id, subject_id, score }
+  if (!updates || !updates.length) {
+    return res.status(400).json({ error: 'Нет данных для сохранения' });
+  }
+  const db = require('../db/connection');
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    const stmt = db.prepare(`
+      INSERT INTO final_scores (person_id, subject_id, score)
+      VALUES (?, ?, ?)
+      ON CONFLICT(person_id, subject_id) DO UPDATE SET score = excluded.score
+    `);
+    for (const u of updates) {
+      stmt.run([u.person_id, u.subject_id, u.score]);
+    }
+    stmt.finalize();
+    db.run('COMMIT', (err) => {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ message: `Сохранено ${updates.length} итоговых оценок` });
+    });
+  });
+});
 module.exports = router;
