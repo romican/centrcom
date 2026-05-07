@@ -26,6 +26,24 @@ function runMigrations() {
       });
     }
   });
+  db.all("PRAGMA table_info(collections)", (err, columns) => {
+  if (err || !columns) return;
+  if (!columns.some(c => c.name === 'head_teacher')) {
+    db.run("ALTER TABLE collections ADD COLUMN head_teacher TEXT");
+  }
+  if (!columns.some(c => c.name === 'status')) {
+    db.run("ALTER TABLE collections ADD COLUMN status TEXT DEFAULT 'created'");
+  }
+  if (!columns.some(c => c.name === 'created_at')) {
+    db.run("ALTER TABLE collections ADD COLUMN created_at TEXT");
+  }
+  if (!columns.some(c => c.name === 'locked_at')) {
+    db.run("ALTER TABLE collections ADD COLUMN locked_at TEXT");
+  }
+  if (!columns.some(c => c.name === 'first_school_added_at')) {
+    db.run("ALTER TABLE collections ADD COLUMN first_school_added_at TEXT");
+  }
+});
 }
 
 module.exports = { runMigrations };

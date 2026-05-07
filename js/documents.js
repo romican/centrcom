@@ -68,9 +68,6 @@ function openEditDescriptionModal(docId, docTitle, currentDesc) {
     closeModal();
     renderDocuments(); // перерисовываем карточки
   });
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
-  });
 }
 
 // Модалка выбора школы (для сводной ведомости)
@@ -120,7 +117,6 @@ function showSchoolSelector(schools, docType) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
-  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#schoolsList input[type="radio"]:checked');
@@ -202,7 +198,6 @@ function showPlatoonSelector(platoons) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
-  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#platoonsList input[type="radio"]:checked');
@@ -289,7 +284,6 @@ function showTempJournalSchoolSelector(schools) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
-  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#tempJournalSchoolsList input[type="radio"]:checked');
@@ -362,7 +356,6 @@ function showTempJournalPlatoonSelector(platoons) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
-  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#tempJournalPlatoonsList input[type="radio"]:checked');
@@ -529,11 +522,7 @@ async function handleSvodnaya() {
       generateDocBtn.onclick = oldHandler;
     };
     closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });
-    window.selectCollectionsModal.addEventListener('click', (e) => {
-      if (e.target === window.selectCollectionsModal) restoreHandler();
-    }, { once: true });
-    
+    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });   
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
@@ -584,11 +573,7 @@ async function handleFizo() {
       generateDocBtn.onclick = oldHandler;
     };
     closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });
-    window.selectCollectionsModal.addEventListener('click', (e) => {
-      if (e.target === window.selectCollectionsModal) restoreHandler();
-    }, { once: true });
-    
+    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });   
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
@@ -642,11 +627,7 @@ async function handleVremJournal() {
       generateDocBtn.onclick = oldHandler;
     };
     closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });
-    window.selectCollectionsModal.addEventListener('click', (e) => {
-      if (e.target === window.selectCollectionsModal) restoreHandler();
-    }, { once: true });
-    
+    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });    
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
@@ -654,6 +635,3 @@ async function handleVremJournal() {
 
 closeSelectModalBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
 cancelSelectBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
-window.selectCollectionsModal.addEventListener('click', (e) => {
-  if (e.target === window.selectCollectionsModal) window.selectCollectionsModal.style.display = 'none';
-});

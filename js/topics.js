@@ -4,7 +4,57 @@ let topics_currentCollection = null;
 let topics_subjects = [];
 let topics_topics = [];
 let topics_weekDays = [];
+// ========== ФИКСИРОВАННОЕ РАСПИСАНИЕ ЗАНЯТИЙ ==========
+const TOPICS_SCHEDULE = [
+  // Строевая подготовка
+  { subjectName: 'Строевая подготовка', day: 'Понедельник', topicName: 'Тема 1 Практическое занятие. Строевые приемы и движение без оружия. Выполнение команд: "Становись","Равняйсь""Смирно", "Вольно", "Заправиться", "Отставить", "Головные уборы снять (одеть)". Повороты на месте. Движение строевым шагом' },
+  { subjectName: 'Строевая подготовка', day: 'Вторник', topicName: 'Тема 2 Практическое занятие. Строевые приемы и движения без оружия. Выполнение воинского приветствия на месте и в движении.' },
+  { subjectName: 'Строевая подготовка', day: 'Среда', topicName: 'Тема 3 Практическое занятие. Построения, перестроения,повороты, перемена направления движения. Выполнения воинского приветствия в строю на месте и в движении.' },
+  { subjectName: 'Строевая подготовка', day: 'Четверг', topicName: 'Тема 4 Практическое занятие. Строи подразделений в пешем порядке. Развернутый и походный строй взвода. Смотр строя и песни.' },
 
+  // Радиационная, химическая и биологическая защита
+  { subjectName: 'Радиационная, химическая и биологическая защита', day: 'Вторник', topicName: 'Тема 1 Практическое занятие. Средства индивидуальной защиты и пользование ими.' },
+  { subjectName: 'Радиационная, химическая и биологическая защита', day: 'Среда', topicName: 'Тема 2 Практическое занятие. Способы действий личного состава в условиях радиационного, химического заражения местности.' },
+
+  // Обеспечение безопасности военной службы
+  { subjectName: 'Обеспечение безопасности военной службы', day: 'Понедельник', topicName: 'Тема 1 Показное (комплексное) занятие. Основные мероприятия по обеспечению безопасности военной службы.' },
+
+  // Военно-медицинская подготовка
+  { subjectName: 'Военно-медицинская подготовка', day: 'Вторник', topicName: 'Тема 1 Практическое занятие. Основы сохранения здоровья военнослужащих. Оказание первой помощи. Неотложные реанимационные мероприятия.' },
+  { subjectName: 'Военно-медицинская подготовка', day: 'Среда', topicName: 'Практическое занятие №2. Основы сохранения здоровья военнослужащих. Оказание первой помощи. Неотложные реанимационные мероприятия.' },
+
+  // Общевоинские уставы ВС РФ
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Понедельник', topicName: 'Тема 1 Практическое занятие. Военнослужащие Вооруженных Сил Российской Федерации и взаимоотношения между ними. Размещение военнослужащих' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Понедельник', topicName: 'Тема 2 Практическое занятие. Распределение времени и внутренний порядок. Распорядок дня и регламент служебного времени.' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Понедельник', topicName: 'Тема 3 Практическое занятие. Обязанности лиц суточного наряда. Назначение суточного наряда, его состав и вооружение. Подчиненность и обязанности дневального по роте.' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Понедельник', topicName: 'Тема 4 Практическое занятие. Обязанности дежурного по роте. Порядок приема и сдачи дежурства, действия при подъеме по тревоге, прибытие в роту офицеров и старшин.' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Среда', topicName: 'Тема 5 Практическое занятие. Воинская дисциплина. Поощрения и дисциплинарные взыскания. Права военнослужащего. Дисциплинарная, административная и уголовная ответственность военнослужащих.' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Четверг', topicName: 'Тема 6 Практическое занятие. Комната для хранения оружия, ее оборудование. Порядок хранения оружия и боеприпасов. Допуск личного состава в комнату для хранения оружия. Порядок выдачи оружия и боеприпасов.' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Четверг', topicName: 'Тема 7 Практическое занятие. Несение караульной службы - выполнение боевой задачи, состав караула. Часовой и караульный. Обязанности часового. Пост и его оборудование' },
+  { subjectName: 'Общевоинские уставы ВС РФ', day: 'Пятница', topicName: 'Тема 8 Практическое занятие. Действия личного состава по команде «Сбор» «Тревога»' },
+
+  // Тактическая подготовка
+  { subjectName: 'Тактическая подготовка', day: 'Вторник', topicName: 'Тема 1 Практическое занятие. Движения солдата в бою. Передвижения на поле боя.' },
+  { subjectName: 'Тактическая подготовка', day: 'Четверг', topicName: 'Тема 2 Тактико-специальное занятие. Показ боевой техники и вооружения, образцов стрелкового оружия. Основы боевого применения средств специальных войск.' },
+  { subjectName: 'Тактическая подготовка', day: 'Четверг', topicName: 'Тема 3 Тактико-специальное занятие. Передвижение на поле боя. Выбор места и скрытное расположение на нем для наблюдения и ведения огня.' },
+
+  // Физическая подготовка
+  { subjectName: 'Физическая подготовка', day: 'Понедельник', topicName: 'Тема 1 Практическое занятие. Разучивание и совершенствование физических упражнений, выполняемых на утренней физической зарядке' },
+  { subjectName: 'Физическая подготовка', day: 'Вторник', topicName: 'Тема 2 Практическое занятие. Совершенствование и контроль упражнения в беге на 100 м (челночный бег 10 по 10 м) и в прыжках в длину с места.' },
+  { subjectName: 'Физическая подготовка', day: 'Вторник', topicName: 'Тема 3 Практическое занятие. Совершенствование упражнений на гимнастических снарядах и контроль упражнения в подтягивании на перекладине и в сгибании и разгибании рук в упоре.' },
+  { subjectName: 'Физическая подготовка', day: 'Среда', topicName: 'Тема 4 Практическое занятие. Совершенствование и контроль упражнения в беге на 1 км.' },
+  { subjectName: 'Физическая подготовка', day: 'Пятница', topicName: 'Тема 5 Практическое занятие. Комплексное занятие.' },
+
+  // Огневая подготовка
+  { subjectName: 'Огневая подготовка', day: 'Вторник', topicName: 'Тема 1 Практическое занятие. Материальная часть автомата. Назначение, боевые свойства и устройство автомата, разборка и сборка. Работа частей и механизмов автомата при заряжании и стрельбе. Уход за стрелковым оружием, хранение и сбережение' },
+  { subjectName: 'Огневая подготовка', day: 'Среда', topicName: 'Тема 2 Практическое занятие. Требования безопасности при проведении занятий по огневой подготовке. Правила стрельбы из стрелкового оружия.' },
+  { subjectName: 'Огневая подготовка', day: 'Среда', topicName: 'Тема 3 Практическое занятие. Требования безопасности при проведении занятий по огневой подготовке. Правила стрельбы из стрелкового оружия.' },
+  { subjectName: 'Огневая подготовка', day: 'Четверг', topicName: 'Тема 4 Практическое занятие. Требования безопасности при проведении занятий по огневой подготовке. Изготовка для стрельбы лежа, порядок заряжания и разряжению оружия.' },
+  { subjectName: 'Огневая подготовка', day: 'Пятница', topicName: 'Темпа 5 Практическое занятие. Выполнение упражнений начальных стрельб' },
+  { subjectName: 'Огневая подготовка', day: 'Пятница', topicName: 'Темпа 5 Практическое занятие. Выполнение упражнений начальных стрельб' },
+  { subjectName: 'Огневая подготовка', day: 'Пятница', topicName: 'Темпа 5 Практическое занятие. Выполнение упражнений начальных стрельб' },
+  { subjectName: 'Огневая подготовка', day: 'Пятница', topicName: 'Темпа 5 Практическое занятие. Выполнение упражнений начальных стрельб' }
+];
 // Вспомогательная функция авто-выбора сбора (текущий или последний)
 function getAutoSelectCollectionId(collections) {
   if (!collections.length) return null;
@@ -71,14 +121,13 @@ window.renderTopics = async function() {
   });
 
   document.getElementById('addTopicBtn').addEventListener('click', () => openAddTopicModal());
-  document.getElementById('autoTopicsBtn').addEventListener('click', async () => {
-    if (!topics_currentCollectionId) {
-      alert('Сначала выберите сбор');
-      return;
-    }
-    if (!confirm('Автоматическое копирование тем из предыдущего сбора (по дням недели) заменит все текущие темы. Продолжить?')) return;
-    await autoCopyTopicsFromPreviousCollection();
-  });
+document.getElementById('autoTopicsBtn').addEventListener('click', async () => {
+  if (!topics_currentCollectionId) {
+    alert('Сначала выберите сбор');
+    return;
+  }
+  await autoAddTopicsFromSchedule();
+});
 
   document.getElementById('openFullScheduleBtn').addEventListener('click', () => openFullScheduleModal());
 };
@@ -359,71 +408,84 @@ async function openEditTopicModal(topicId) {
   });
 }
 
-async function autoCopyTopicsFromPreviousCollection() {
-  console.log('autoCopyTopicsFromPreviousCollection начал работу');
+async function autoAddTopicsFromSchedule() {
+  if (!topics_currentCollectionId) {
+    alert('Сначала выберите сбор');
+    return;
+  }
+  if (!confirm('Автоматическое добавление тем по расписанию заменит все текущие темы. Продолжить?')) return;
+
+  // Получить информацию о текущем сборе
   const collectionsResp = await fetch('/api/collections');
   const allCollections = await collectionsResp.json();
   const currentCollection = allCollections.find(c => c.id == topics_currentCollectionId);
   if (!currentCollection) {
-    console.error('Текущий сбор не найден');
+    alert('Ошибка загрузки данных сбора');
     return;
   }
-  console.log('Текущий сбор:', currentCollection);
-  
-  const previousCollections = allCollections.filter(c => c.date_end < currentCollection.date_start);
-  if (previousCollections.length === 0) {
-    alert('Нет предыдущих сборов для копирования');
-    console.log('Нет сборов, заканчивающихся раньше', currentCollection.date_start);
+
+  const startDate = new Date(currentCollection.date_start);
+  // Убедимся, что первый день сбора – понедельник (на всякий случай проверим)
+  const startDay = startDate.getDay(); // 1 = понедельник? в JS воскресенье = 0, понедельник = 1
+  if (startDay !== 1) {
+    alert('Дата начала сбора не является понедельником. Сбор должен начинаться с понедельника.');
     return;
   }
-  previousCollections.sort((a,b) => b.date_end.localeCompare(a.date_end));
-  const previousCollection = previousCollections[0];
-  console.log('Предыдущий сбор выбран:', previousCollection);
-  
-  const prevTopicsResp = await fetch(`/api/topics/${previousCollection.id}`);
-  const prevData = await prevTopicsResp.json();
-  const prevTopics = prevData.topics;
-  console.log('Темы в предыдущем сборе:', prevTopics);
-  if (!prevTopics.length) {
-    alert('В предыдущем сборе нет тем');
-    return;
-  }
-  
+
+  // Маппинг дней недели (русские названия) в число дней от понедельника
+  const dayMapping = {
+    'Понедельник': 0,
+    'Вторник': 1,
+    'Среда': 2,
+    'Четверг': 3,
+    'Пятница': 4
+  };
+
+  // Получаем все предметы из БД для быстрого поиска ID
+  const allSubjects = await fetch('/api/subjects').then(r => r.json());
+  const subjectMap = new Map();
+  allSubjects.forEach(s => subjectMap.set(s.name, s.id));
+
+  // Удаляем все существующие темы текущего сбора
   for (const topic of topics_topics) {
     await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
   }
-  console.log('Текущие темы удалены');
-  
-  const weekdaysMap = {};
-  for (const day of topics_weekDays) {
-    weekdaysMap[day.dayName.toLowerCase()] = day.date;
-  }
-  console.log('Сопоставление дней недели (lowercase):', weekdaysMap);
-  
-  let copiedCount = 0;
-  for (const topic of prevTopics) {
-    const prevDate = topic.date;
-    if (!prevDate) continue;
-    const prevDayName = new Date(prevDate).toLocaleDateString('ru-RU', { weekday: 'long' }).toLowerCase();
-    const targetDate = weekdaysMap[prevDayName];
-    if (targetDate) {
-      await fetch(`/api/topics/${topics_currentCollectionId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject_id: topic.subject_id,
-          name: topic.name,
-          date: targetDate
-        })
-      });
-      copiedCount++;
-    } else {
-      console.warn(`Не найден день недели ${prevDayName} в текущем сборе для темы ${topic.name}`);
+
+  let addedCount = 0;
+  // Проходим по расписанию и создаём темы
+  for (const scheduleItem of TOPICS_SCHEDULE) {
+    const subjectId = subjectMap.get(scheduleItem.subjectName);
+    if (!subjectId) {
+      console.warn(`Предмет "${scheduleItem.subjectName}" не найден в БД, пропускаем`);
+      continue;
     }
+    const dayOffset = dayMapping[scheduleItem.day];
+    if (dayOffset === undefined) {
+      console.warn(`Неизвестный день "${scheduleItem.day}" в расписании`);
+      continue;
+    }
+    const targetDate = new Date(startDate);
+    targetDate.setDate(startDate.getDate() + dayOffset);
+    const dateStr = targetDate.toISOString().slice(0, 10);
+    // Проверяем, не выходит ли дата за пределы сбора (если сбор короткий, например, меньше 5 дней)
+    if (targetDate > new Date(currentCollection.date_end)) {
+      console.warn(`Занятие ${scheduleItem.topicName} (${scheduleItem.day}) выходит за дату окончания сбора, пропущено`);
+      continue;
+    }
+    await fetch(`/api/topics/${topics_currentCollectionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_id: subjectId,
+        name: scheduleItem.topicName,
+        date: dateStr
+      })
+    });
+    addedCount++;
   }
-  console.log(`Скопировано тем: ${copiedCount}`);
+
   await loadTopicsData();
-  alert(`Темы скопированы из предыдущего сбора. Скопировано ${copiedCount} тем.`);
+  alert(`Темы добавлены по расписанию. Добавлено ${addedCount} тем.`);
 }
 
 function openFullScheduleModal() {
@@ -490,8 +552,5 @@ function openFullScheduleModal() {
     printWindow.document.write('<html><head><title>Расписание</title><style>body{font-family:Inter,sans-serif;} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body>' + html + '</body></html>');
     printWindow.document.close();
     printWindow.print();
-  });
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
   });
 }

@@ -117,7 +117,7 @@ module.exports = async (req, res) => {
   try {
     const schoolInfo = await new Promise((resolve, reject) => {
       db.get(`
-        SELECT s.edu_org, c.date_start, c.date_end, c.id as collection_id
+        SELECT s.edu_org, s.head_teacher, c.date_start, c.date_end, c.id as collection_id
         FROM collection_schools s
         JOIN collections c ON s.collection_id = c.id
         WHERE s.id = ?
@@ -157,7 +157,6 @@ module.exports = async (req, res) => {
     for (const cfg of subjectsConfig) {
       const subjectId = await getSubjectIdByName(cfg.name);
       if (!subjectId) {
-        console.warn(`Предмет "${cfg.name}" не найден`);
         subjectData[cfg.prefix] = { scores: [], finalScores: new Map() };
         continue;
       }
@@ -170,10 +169,7 @@ module.exports = async (req, res) => {
           const score = scoresMap.get(`${student.id}|${topic.id}`);
           arr.push(score !== undefined ? score : null);
         }
-        while (arr.length < cfg.count) {
-          const lastVal = arr.length ? arr[arr.length - 1] : null;
-          arr.push(lastVal);
-        }
+        while (arr.length < cfg.count) arr.push(arr.length ? arr[arr.length-1] : null);
         studentScores.push(arr.slice(0, cfg.count));
       }
       const finalScores = await getFinalScoresForSubject(subjectId, studentIds);
@@ -201,91 +197,14 @@ module.exports = async (req, res) => {
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) return res.status(500).json({ error: 'В шаблоне нет первого листа' });
 
-    // 1. Находим строку с тегом {{ROWS}} и удаляем её, затем вставляем нужное количество строк
-    let rowsStartRow = null;
-    worksheet.eachRow((row, rowNumber) => {
-      row.eachCell(cell => {
-        if (cell.value === '{{ROWS}}') rowsStartRow = rowNumber;
-      });
-    });
-    if (rowsStartRow === null) return res.status(500).json({ error: 'В шаблоне нет метки {{ROWS}}' });
-
-    // Удаляем строку с тегом и вставляем пустые строки для каждого ученика
-    worksheet.spliceRows(rowsStartRow, 1);
-    // Теперь в позиции rowsStartRow будут новые строки
-    worksheet.spliceRows(rowsStartRow, 0, ...new Array(students.length).fill([]));
-
-    // 2. Заполняем номера (колонка A) и ФИО (колонка B) в этих строках
-    for (let i = 0; i < students.length; i++) {
-      const row = worksheet.getRow(rowsStartRow + i);
-      const numCell = row.getCell(1);
-      numCell.value = i + 1;
-      applyCellStyle(numCell, 9, 'center', 'middle', false, false);
-      addBorders(numCell);
-
-      const nameCell = row.getCell(2); // колонка B
-      nameCell.value = students[i].full_name;
-      applyCellStyle(nameCell, 9, 'left', 'middle', false, true);
-      addBorders(nameCell);
-    }
-
-    // 3. Заполняем оценки, итоговые и финальную оценку
-    // Сначала собираем все позиции тегов (кроме {{ROWS}}, который уже удалён)
-    const tagPositions = new Map(); // key: tagName (без {{}}) -> { row, col }
-    worksheet.eachRow((row, rowNumber) => {
-      row.eachCell((cell, colNumber) => {
-        if (cell.value && typeof cell.value === 'string' && cell.value.startsWith('{{') && cell.value.endsWith('}}')) {
-          const tag = cell.value.slice(2, -2);
-          if (tag !== 'ROWS') tagPositions.set(tag, { row: rowNumber, col: colNumber });
-        }
-      });
-    });
-
-    // Для каждого ученика записываем значения, сдвигая строки вниз
-    for (let i = 0; i < students.length; i++) {
-      const student = students[i];
-      for (const cfg of subjectsConfig) {
-        const prefix = cfg.prefix;
-        const scoresArray = subjectData[prefix].scores[i];
-        for (let idx = 1; idx <= cfg.count; idx++) {
-          const tagName = `${prefix}_${idx}`;
-          const pos = tagPositions.get(tagName);
-          if (pos) {
-            const targetRow = pos.row + i;
-            const cell = worksheet.getRow(targetRow).getCell(pos.col);
-            const val = scoresArray[idx - 1];
-            cell.value = (val !== null && val !== undefined) ? val : '—';
-            applyCellStyle(cell, 11, 'center', 'middle', false, false);
-            addBorders(cell);
-          }
-        }
-        const finalTag = `${prefix}_FINAL`;
-        const finalPos = tagPositions.get(finalTag);
-        if (finalPos) {
-          const targetRow = finalPos.row + i;
-          const cell = worksheet.getRow(targetRow).getCell(finalPos.col);
-          const finalScore = subjectData[prefix].finalScores.get(student.id);
-          cell.value = (finalScore !== undefined) ? finalScore : '—';
-          applyCellStyle(cell, 11, 'center', 'middle', true, false);
-          addBorders(cell);
-        }
-      }
-      const overallTagPos = tagPositions.get('FINAL_OVERALL');
-      if (overallTagPos) {
-        const targetRow = overallTagPos.row + i;
-        const cell = worksheet.getRow(targetRow).getCell(overallTagPos.col);
-        cell.value = (overallScores[i] !== null) ? overallScores[i] : '—';
-        applyCellStyle(cell, 11, 'center', 'middle', true, false);
-        addBorders(cell);
-      }
-    }
-
-    // 4. Общие метки (школа, даты) – заменяем во всех ячейках однократно
+    // ========== 1. ЗАМЕНА ОБЩИХ МЕТОК ДО ВСТАВКИ СТРОК ==========
+    // Проходим по всем ячейкам и заменяем метки на значения (один раз)
     worksheet.eachRow(row => {
       row.eachCell(cell => {
         if (cell && cell.value && typeof cell.value === 'string') {
           let val = cell.value;
           val = val.replace('{{SCHOOL_NAME}}', schoolInfo.edu_org);
+          val = val.replace('{{HEAD_TEACHER}}', schoolInfo.head_teacher || '—');
           val = val.replace('{{DATE_START}}', formatDateFull(schoolInfo.date_start));
           val = val.replace('{{DATE_END}}', formatDateFull(schoolInfo.date_end));
           val = val.replace('{{DATE_START_DDMM}}', formatDateDDMM(schoolInfo.date_start));
@@ -294,6 +213,87 @@ module.exports = async (req, res) => {
         }
       });
     });
+
+    // ========== 2. ПОИСК СТРОКИ С {{ROWS}} И ТЕГОВ ОЦЕНОК ==========
+    let rowsStartRow = null;
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell(cell => {
+        let val = cell.value;
+        if (val && typeof val === 'string' && val.replace(/\s/g, '').toUpperCase() === '{{ROWS}}') {
+          rowsStartRow = rowNumber;
+        }
+      });
+    });
+    if (rowsStartRow === null) return res.status(500).json({ error: 'В шаблоне нет метки {{ROWS}}' });
+
+    // Собираем колонки тегов оценок из этой строки
+    const tagColumns = new Map();
+    worksheet.getRow(rowsStartRow).eachCell((cell, colNumber) => {
+      let val = cell.value;
+      if (val && typeof val === 'string') {
+        const match = val.match(/\{\{(.*?)\}\}/);
+        if (match) {
+          const inner = match[1];
+          const normalized = inner.replace(/\s/g, '').toUpperCase();
+          if (normalized !== 'ROWS') {
+            tagColumns.set(normalized, colNumber);
+          }
+        }
+      }
+    });
+
+    // Удаляем строку с тегами (она больше не нужна)
+    worksheet.spliceRows(rowsStartRow, 1);
+    // Вставляем пустые строки для учеников (столько же, сколько учеников)
+    worksheet.spliceRows(rowsStartRow, 0, ...new Array(students.length).fill([]));
+
+    // ========== 3. ЗАПОЛНЯЕМ НОМЕРА, ФАМИЛИИ И ОЦЕНКИ ==========
+    for (let i = 0; i < students.length; i++) {
+      const row = worksheet.getRow(rowsStartRow + i);
+      const numCell = row.getCell(1);
+      numCell.value = i + 1;
+      applyCellStyle(numCell, 9, 'center', 'middle', false, false);
+      addBorders(numCell);
+      const nameCell = row.getCell(2);
+      nameCell.value = students[i].full_name;
+      applyCellStyle(nameCell, 9, 'left', 'middle', false, true);
+      addBorders(nameCell);
+    }
+
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      for (const cfg of subjectsConfig) {
+        const prefix = cfg.prefix;
+        const scoresArray = subjectData[prefix].scores[i];
+        for (let idx = 1; idx <= cfg.count; idx++) {
+          const tagName = `${prefix}_${idx}`;
+          const col = tagColumns.get(tagName);
+          if (col) {
+            const cell = worksheet.getRow(rowsStartRow + i).getCell(col);
+            const val = scoresArray[idx-1];
+            cell.value = (val !== null && val !== undefined) ? val : '—';
+            applyCellStyle(cell, 11, 'center', 'middle', false, false);
+            addBorders(cell);
+          }
+        }
+        const finalTag = `${prefix}_FINAL`;
+        const finalCol = tagColumns.get(finalTag);
+        if (finalCol) {
+          const cell = worksheet.getRow(rowsStartRow + i).getCell(finalCol);
+          const finalScore = subjectData[prefix].finalScores.get(student.id);
+          cell.value = (finalScore !== undefined) ? finalScore : '—';
+          applyCellStyle(cell, 11, 'center', 'middle', true, false);
+          addBorders(cell);
+        }
+      }
+      const overallCol = tagColumns.get('FINAL_OVERALL');
+      if (overallCol) {
+        const cell = worksheet.getRow(rowsStartRow + i).getCell(overallCol);
+        cell.value = (overallScores[i] !== null) ? overallScores[i] : '—';
+        applyCellStyle(cell, 11, 'center', 'middle', true, false);
+        addBorders(cell);
+      }
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

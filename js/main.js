@@ -21,6 +21,16 @@ window.formatDate = function(dateStr) {
   const [y, m, d] = dateStr.split('-');
   return `${d}.${m}.${y}`;
 };
+window.formatDateTime = function(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}.${month}.${year} ${hours}:${minutes}`;
+};
 window.formatCurrency = function(amount) {
   return Number(amount).toLocaleString('ru-RU', { minimumFractionDigits: 2 }) + ' ₽';
 };
@@ -57,40 +67,38 @@ function loadTheme() {
   const saved = localStorage.getItem('theme');
   if (saved === 'dark') {
     document.body.classList.add('dark-theme');
-    window.themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+    if (window.themeToggleBtn) window.themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
   } else {
     document.body.classList.remove('dark-theme');
-    window.themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
+    if (window.themeToggleBtn) window.themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
   }
 }
 function toggleTheme() {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
     localStorage.setItem('theme', 'light');
-    window.themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
+    if (window.themeToggleBtn) window.themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
   } else {
     document.body.classList.add('dark-theme');
     localStorage.setItem('theme', 'dark');
-    window.themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+    if (window.themeToggleBtn) window.themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
   }
 }
-window.themeToggleBtn.addEventListener('click', toggleTheme);
+if (window.themeToggleBtn) window.themeToggleBtn.addEventListener('click', toggleTheme);
 loadTheme();
 
-// ========== ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ С ПОДМЕНЮ ==========
+// ========== ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ ==========
 window.switchSection = function(section) {
   localStorage.setItem('activeSection', section);
 
-  // Управление видимостью подменю
+  // Управление подменю
   const logisticsSubmenu = document.getElementById('logisticsSubmenu');
   const collectionsSubmenu = document.getElementById('collectionsSubmenu');
-
   if (section === 'buses' || section === 'logistics-docs') {
     if (logisticsSubmenu) logisticsSubmenu.classList.add('show');
   } else {
     if (logisticsSubmenu) logisticsSubmenu.classList.remove('show');
   }
-
   if (section === 'collections' || section === 'platoons' || section === 'documents' || section === 'topics' || section === 'scores') {
     if (collectionsSubmenu) collectionsSubmenu.classList.add('show');
   } else {
@@ -100,43 +108,48 @@ window.switchSection = function(section) {
   // Обработка разделов
   if (section === 'buses') {
     window.sectionTitle.innerText = 'Логистика';
-    window.addButton.style.display = 'flex';
-    window.addButton.onclick = () => window.openBusModal();
+    if (window.addButton) {
+      window.addButton.style.display = 'flex';
+      window.addButton.onclick = () => window.openBusModal();
+    }
     if (window.loadBuses) window.loadBuses();
   } else if (section === 'logistics-docs') {
     window.sectionTitle.innerText = 'Документы (логистика)';
-    window.addButton.style.display = 'none';
+    if (window.addButton) window.addButton.style.display = 'none';
     window.contentBody.innerHTML = '<div class="empty-message">Раздел в разработке</div>';
   } else if (section === 'collections') {
     window.sectionTitle.innerText = 'Сборы';
-    window.addButton.style.display = 'flex';
-    window.addButton.onclick = () => window.openCollectionModal();
+    if (window.addButton) window.addButton.style.display = 'none';
     if (window.loadCollections) window.loadCollections();
   } else if (section === 'platoons') {
     window.sectionTitle.innerText = 'Взвода';
-    window.addButton.style.display = 'none';
+    if (window.addButton) window.addButton.style.display = 'none';
     if (window.renderPlatoons) window.renderPlatoons();
   } else if (section === 'documents') {
     window.sectionTitle.innerText = 'Документы (сборы)';
-    window.addButton.style.display = 'none';
+    if (window.addButton) window.addButton.style.display = 'none';
     if (window.renderDocuments) window.renderDocuments();
   } else if (section === 'topics') {
     window.sectionTitle.innerText = 'Занятия';
-    window.addButton.style.display = 'none';
+    if (window.addButton) window.addButton.style.display = 'none';
     if (window.renderTopics) window.renderTopics();
   } else if (section === 'scores') {
     window.sectionTitle.innerText = 'Оценки';
-    window.addButton.style.display = 'none';
+    if (window.addButton) window.addButton.style.display = 'none';
     if (window.renderScores) window.renderScores();
   } else if (section === 'invoices') {
     window.sectionTitle.innerText = 'Счета';
-    window.addButton.style.display = 'flex';
-    window.addButton.onclick = () => window.openInvoiceModal();
+    if (window.addButton) {
+      window.addButton.style.display = 'flex';
+      window.addButton.onclick = () => window.openInvoiceModal();
+    }
     if (window.loadInvoices) window.loadInvoices();
   } else if (section === 'employees') {
     window.sectionTitle.innerText = 'Сотрудники';
-    window.addButton.style.display = 'flex';
-    window.addButton.onclick = () => window.openEmployeeModal();
+    if (window.addButton) {
+      window.addButton.style.display = 'flex';
+      window.addButton.onclick = () => window.openEmployeeModal();
+    }
     if (window.loadEmployees) window.loadEmployees();
   }
 };
@@ -151,11 +164,13 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-window.toggleBtn.addEventListener('click', () => {
-  window.sidebar.classList.toggle('collapsed');
-});
+if (window.toggleBtn) {
+  window.toggleBtn.addEventListener('click', () => {
+    if (window.sidebar) window.sidebar.classList.toggle('collapsed');
+  });
+}
 
-// Инициализация после полной загрузки страницы с задержкой
+// Инициализация
 window.addEventListener('load', function() {
   setTimeout(() => {
     const savedSection = localStorage.getItem('activeSection');
@@ -170,5 +185,5 @@ window.addEventListener('load', function() {
     } else {
       window.switchSection('buses');
     }
-  }, 50); // небольшая задержка для гарантии
+  }, 50);
 });

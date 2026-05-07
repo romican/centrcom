@@ -115,7 +115,6 @@ function renderPlatoonsSection() {
   const closeAutoModal = () => autoDistributeModal.style.display = 'none';
   document.getElementById('closeAutoDistributeModalBtn').addEventListener('click', closeAutoModal);
   document.getElementById('cancelAutoDistributeBtn').addEventListener('click', closeAutoModal);
-  autoDistributeModal.addEventListener('click', (e) => { if (e.target === autoDistributeModal) closeAutoModal(); });
 
   document.getElementById('autoDistributeBtn').addEventListener('click', () => {
     if (!platoon_currentCollectionId) {

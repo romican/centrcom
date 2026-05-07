@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../db/connection');
 
-const generateSchoolDocExcel = require('./schoolDocExcel');
-const generateFizoPlatoonExcel = require('./fizoPlatoonDoc'); // если у вас так называется файл для Физо
+const generateSvodnayaDoc = require('./svodnayaDoc');
+const generateFizoPlatoonExcel = require('./fizoPlatoonDoc');
 const generateVremJurnal = require('./vremJurnalDoc');
 
 router.post('/schools/by-collections', (req, res) => {
@@ -26,7 +26,7 @@ router.post('/schools/by-collections', (req, res) => {
   });
 });
 
-router.post('/generate-school-doc-excel', generateSchoolDocExcel);
+router.post('/generate-school-doc-excel', generateSvodnayaDoc);
 router.post('/generate-fizo-platoon-excel', generateFizoPlatoonExcel);
 router.post('/generate-vrem-jurnal', generateVremJurnal);
 

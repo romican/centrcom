@@ -1,162 +1,284 @@
-// ========== ОБРАБОТЧИКИ ДЛЯ ШКОЛ (добавление, удаление, редактирование, открытие участников) ==========
-// Эта функция вызывается после отрисовки таблицы школ
-window.initSchoolsModalHandlers = function() {
-  // Кнопка "Добавить школу"
-  const addBtn = document.getElementById('addSchoolBtn');
-  if (addBtn) {
-    addBtn.removeEventListener('click', window.handleAddSchool);
-    addBtn.addEventListener('click', window.handleAddSchool);
+// ========== МОДАЛКА ШКОЛ, СТАТУСЫ, ДОБАВЛЕНИЕ/УДАЛЕНИЕ/РЕДАКТИРОВАНИЕ ШКОЛ ==========
+window.refreshCollectionStatus = async function(collectionId) {
+  await new Promise(r => setTimeout(r, 200));
+  const resp = await fetch('/api/collections', { cache: 'no-store' });
+  const all = await resp.json();
+  const collection = all.find(c => c.id == collectionId);
+  if (collection) {
+    window.renderCollectionStatus(collection);
+    const lockBtn = document.getElementById('lockCollectionBtn');
+    const unlockBtn = document.getElementById('unlockCollectionBtn');
+    if (lockBtn && unlockBtn) {
+      const hasSchools = (collection.schools_count > 0);
+      const isLocked = (collection.status === 'locked');
+      if (hasSchools) {
+        if (isLocked) {
+          lockBtn.disabled = true;
+          unlockBtn.disabled = false;
+        } else {
+          lockBtn.disabled = false;
+          unlockBtn.disabled = true;
+        }
+      } else {
+        lockBtn.disabled = true;
+        unlockBtn.disabled = true;
+      }
+      lockBtn.style.opacity = lockBtn.disabled ? '0.5' : '1';
+      unlockBtn.style.opacity = unlockBtn.disabled ? '0.5' : '1';
+    }
   }
-  
-  // Кнопки удаления и редактирования в строках
-  document.querySelectorAll('.delete-school-btn').forEach(btn => {
-    btn.removeEventListener('click', window.handleDeleteSchool);
-    btn.addEventListener('click', window.handleDeleteSchool);
-  });
-  document.querySelectorAll('.edit-school-btn').forEach(btn => {
-    btn.removeEventListener('click', window.handleEditSchool);
-    btn.addEventListener('click', window.handleEditSchool);
-  });
-  
-  // Клик по строке школы – открыть участников
-  document.querySelectorAll('.school-row').forEach(row => {
-    row.removeEventListener('click', window.handleSchoolRowClick);
-    row.addEventListener('click', window.handleSchoolRowClick);
-  });
 };
 
-window.handleAddSchool = function() {
-  // Создаём модалку добавления школы, если её нет
+window.renderCollectionStatus = function(collection) {
+  const statusContainer = document.getElementById('collectionStatusList');
+  if (!statusContainer) return;
+  const statuses = [];
+  const createdDate = collection.created_at ? window.formatDateTime(collection.created_at) : window.formatDate(collection.date_start);
+  statuses.push({ name: 'Сбор создан', date: createdDate, active: true, completed: true });
+  const hasSchools = (collection.schools_count > 0);
+  statuses.push({
+    name: 'Добавление школ и участников',
+    date: hasSchools ? (collection.first_school_added_at ? window.formatDateTime(collection.first_school_added_at) : '—') : '—',
+    active: hasSchools,
+    completed: hasSchools
+  });
+  const isLocked = (collection.status === 'locked');
+  statuses.push({
+    name: 'Сбор сформирован',
+    date: isLocked ? (collection.locked_at ? window.formatDateTime(collection.locked_at) : window.formatDate(collection.date_end)) : '—',
+    active: isLocked,
+    completed: isLocked
+  });
+  let statusHtml = '';
+  statuses.forEach((st, idx) => {
+    const icon = st.completed ? 'fas fa-check-circle' : 'far fa-circle';
+    const lineClass = (idx < statuses.length-1) ? 'status-line' : '';
+    statusHtml += `<div class="status-item ${st.active ? 'active' : ''}">
+      <div class="status-icon"><i class="${icon}"></i></div>
+      <div class="status-content"><div class="status-name">${st.name}</div><div class="status-date">${st.date !== '—' ? st.date : 'не начат'}</div></div>
+      ${lineClass ? `<div class="${lineClass}"></div>` : ''}
+    </div>`;
+  });
+  statusContainer.innerHTML = statusHtml;
+};
+
+function ensureSchoolsModal() {
+  if (document.getElementById('schoolsModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'schoolsModal';
+  modal.className = 'modal';
+  modal.innerHTML = `<div class="modal-content" style="max-width:1100px; height:85vh; display:flex; flex-direction:row; padding:0; overflow:hidden;">
+    <div style="flex:2; display:flex; flex-direction:column; overflow:hidden; border-right:1px solid #e2e8f0;">
+      <div class="modal-header" style="flex-shrink:0;"><h2><i class="fas fa-school"></i> Школы в сборе</h2><div style="display:flex; align-items:center; gap:12px;"><input type="text" id="searchSchoolInput" placeholder="Поиск по школе..." style="padding:8px 12px; border-radius:20px; border:1px solid #ccc; width:180px;"><button class="close-modal" id="closeSchoolsModalBtn">&times;</button></div></div>
+      <div id="schoolsInfo" style="margin:0 20px 12px 20px; flex-shrink:0;"></div>
+      <div style="flex:1; overflow-y:auto; padding:0 20px;" id="schoolsListContainer"><table style="width:100%; border-collapse:collapse;" id="schoolsTable"><thead><tr><th>Школа</th><th>Руководитель</th><th>Кол-во человек</th><th style="width:120px">Действия</th></tr></thead><tbody id="schoolsTableBody"></tbody></table></div>
+      <div style="flex-shrink:0; padding:12px 20px 16px 20px; background:inherit; border-top:1px solid #e2e8f0;">
+        <button id="addSchoolBtn" class="btn add" style="width:100%;"><i class="fas fa-plus"></i> Добавить школу</button>
+        <div style="display:flex; gap:12px; margin-top:12px;"><button id="lockCollectionBtn" class="btn" style="background:#10b981; color:white; width:100%;"><i class="fas fa-lock"></i> Закрепить</button><button id="unlockCollectionBtn" class="btn" style="background:#ef4444; color:white; width:100%;"><i class="fas fa-lock-open"></i> Открепить</button></div>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; background:#f8fafc; overflow-y:auto;">
+      <div class="modal-header" style="border-bottom:none;"><h2><i class="fas fa-chart-line"></i> Статус сборов</h2></div>
+      <div id="collectionStatusList" style="padding:16px; display:flex; flex-direction:column; gap:20px;"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function loadSchoolsAndRender(collectionId) {
+  const resp = await fetch(`/api/collections/${collectionId}/schools`);
+  const schools = await resp.json();
+  const tbody = document.getElementById('schoolsTableBody');
+  if (!tbody) return;
+  if (!schools.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Нет школ. Нажмите "Добавить школу".</td></tr>';
+  } else {
+    tbody.innerHTML = schools.map(school => `<tr class="school-row" data-school-id="${school.id}">
+      <td class="school-name">${window.escapeHtml(school.edu_org)}</td>
+      <td class="school-head">${window.escapeHtml(school.head_teacher || '—')}</td>
+      <td class="school-count">${school.people_count || 0}</td>
+      <td class="school-actions"><button class="edit-school-btn" data-school-id="${school.id}"><i class="fas fa-edit"></i></button><button class="delete-school-btn" data-school-id="${school.id}"><i class="fas fa-trash-alt"></i></button></td>
+    </tr>`).join('');
+  }
+  attachSchoolButtons();
+  return schools;
+}
+
+function attachSchoolButtons() {
+  document.querySelectorAll('.delete-school-btn').forEach(btn => {
+    btn.onclick = (e) => { e.stopPropagation(); window.handleDeleteSchool(btn); };
+  });
+  document.querySelectorAll('.edit-school-btn').forEach(btn => {
+    btn.onclick = (e) => { e.stopPropagation(); window.handleEditSchool(btn); };
+  });
+  document.querySelectorAll('.school-row').forEach(row => {
+    row.onclick = (e) => {
+      if (e.target.closest('.edit-school-btn') || e.target.closest('.delete-school-btn')) return;
+      const schoolId = row.getAttribute('data-school-id');
+      const schoolName = row.querySelector('.school-name').innerText;
+      if (window.openPeopleModal) window.openPeopleModal(schoolId, schoolName);
+    };
+  });
+}
+
+window.openSchoolsModal = async function(collectionId) {
+  ensureSchoolsModal();
+  window.currentCollectionIdForSchools = collectionId;
+  const collectionsResp = await fetch('/api/collections', { cache: 'no-store' });
+  const allCollections = await collectionsResp.json();
+  const collection = allCollections.find(c => c.id == collectionId);
+  const schoolsInfoDiv = document.getElementById('schoolsInfo');
+  if (schoolsInfoDiv && collection) {
+    schoolsInfoDiv.innerHTML = `<strong>Сбор:</strong> ${window.formatDate(collection.date_start)} — ${window.formatDate(collection.date_end)}<br>
+      <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}<br>
+      <strong>Руководитель:</strong> ${window.escapeHtml(collection.head_teacher || '—')}`;
+  }
+  await loadSchoolsAndRender(collectionId);
+  window.renderCollectionStatus(collection);
+
+  const lockBtn = document.getElementById('lockCollectionBtn');
+  const unlockBtn = document.getElementById('unlockCollectionBtn');
+  if (lockBtn && unlockBtn) {
+    const hasSchools = (collection.schools_count > 0);
+    const isLocked = (collection.status === 'locked');
+    if (hasSchools) {
+      if (isLocked) {
+        lockBtn.disabled = true;
+        unlockBtn.disabled = false;
+      } else {
+        lockBtn.disabled = false;
+        unlockBtn.disabled = true;
+      }
+    } else {
+      lockBtn.disabled = true;
+      unlockBtn.disabled = true;
+    }
+    lockBtn.style.opacity = lockBtn.disabled ? '0.5' : '1';
+    unlockBtn.style.opacity = unlockBtn.disabled ? '0.5' : '1';
+    lockBtn.onclick = async () => {
+      if (!confirm('Закрепить сбор? После этого нельзя будет добавлять/удалять/редактировать школы.')) return;
+      const resp = await fetch(`/api/collections/${collectionId}/lock`, { method: 'POST' });
+      if (resp.ok) {
+        alert('Сбор закреплён');
+        await window.refreshCollectionStatus(collectionId);
+        window.loadCollections();
+      } else alert('Ошибка при закреплении');
+    };
+    unlockBtn.onclick = async () => {
+      if (!confirm('Открепить сбор? Станет доступно редактирование школ.')) return;
+      const resp = await fetch(`/api/collections/${collectionId}/unlock`, { method: 'POST' });
+      if (resp.ok) {
+        alert('Сбор откреплён');
+        await window.refreshCollectionStatus(collectionId);
+        window.loadCollections();
+      } else alert('Ошибка при откреплении');
+    };
+  }
+
+  const schoolsModal = document.getElementById('schoolsModal');
+  if (schoolsModal) schoolsModal.style.display = 'flex';
+  document.getElementById('closeSchoolsModalBtn').onclick = () => schoolsModal.style.display = 'none';
+  const addSchoolBtn = document.getElementById('addSchoolBtn');
+  if (addSchoolBtn) {
+    addSchoolBtn.replaceWith(addSchoolBtn.cloneNode(true));
+    document.getElementById('addSchoolBtn').addEventListener('click', () => window.openAddSchoolModal(collectionId));
+  }
+};
+
+window.openAddSchoolModal = function(collectionId) {
   let addModal = document.getElementById('addSchoolModal');
   if (!addModal) {
     addModal = document.createElement('div');
     addModal.id = 'addSchoolModal';
     addModal.className = 'modal';
-    addModal.innerHTML = `
-      <div class="modal-content" style="max-width: 600px;">
-        <div class="modal-header">
-          <h2><i class="fas fa-plus-circle"></i> Добавить школу</h2>
-          <button class="close-modal" id="closeAddSchoolModalBtn">&times;</button>
-        </div>
-        <div style="padding: 16px 24px;">
-          <form id="addSchoolForm">
-            <div class="form-group">
-              <label><i class="fas fa-school"></i> Название школы</label>
-              <input type="text" id="schoolName" placeholder="ГБОУ Школа №..." required>
-            </div>
-            <div class="form-group">
-              <label><i class="fas fa-user-tie"></i> Руководитель сборов (школа)</label>
-              <input type="text" id="headTeacher" placeholder="Иванов Иван Иванович">
-            </div>
-            <div class="form-group">
-              <label><i class="fas fa-list-ul"></i> Список людей (ФИО, каждый с новой строки)</label>
-              <textarea id="schoolPeopleList" rows="8" placeholder="Иванов Иван Иванович&#10;Петров Петр Петрович" required style="width:100%; padding:12px; border-radius:16px; border:1.5px solid #e2e8f0; font-family:inherit;"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn cancel" id="cancelAddSchoolBtn">Отменить</button>
-              <button type="submit" class="btn add">Сохранить школу</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    `;
+    addModal.innerHTML = `<div class="modal-content" style="max-width:600px;"><div class="modal-header"><h2><i class="fas fa-plus-circle"></i> Добавить школу</h2><button class="close-modal" id="closeAddSchoolModalBtn">&times;</button></div>
+      <div style="padding:16px 24px;"><form id="addSchoolForm">
+        <div class="form-group"><label><i class="fas fa-school"></i> Название школы</label><input type="text" id="schoolName" placeholder="ГБОУ Школа №..." required></div>
+        <div class="form-group"><label><i class="fas fa-user-tie"></i> Руководитель сборов (школа)</label><input type="text" id="headTeacher" placeholder="Иванов Иван Иванович"></div>
+        <div class="form-group"><label><i class="fas fa-list-ul"></i> Список людей (ФИО, каждый с новой строки)</label><textarea id="schoolPeopleList" rows="8" placeholder="Иванов Иван Иванович&#10;Петров Петр Петрович" required style="width:100%; padding:12px; border-radius:16px; border:1.5px solid #e2e8f0; font-family:inherit;"></textarea></div>
+        <div class="form-group"><button type="button" id="loadWordBtn" class="btn" style="background:#8b5cf6; color:white; width:100%;"><i class="fas fa-file-word"></i> Загрузить файл Word</button><input type="file" id="wordFileInput" accept=".docx" style="display:none;"></div>
+        <div class="form-actions"><button type="button" class="btn cancel" id="cancelAddSchoolBtn">Отменить</button><button type="submit" class="btn add">Сохранить школу</button></div>
+      </form></div></div>`;
     document.body.appendChild(addModal);
-    
-    // Обработчики закрытия модалки
-    document.getElementById('closeAddSchoolModalBtn').addEventListener('click', () => {
-      addModal.style.display = 'none';
-    });
-    document.getElementById('cancelAddSchoolBtn').addEventListener('click', () => {
-      addModal.style.display = 'none';
-    });
-    addModal.addEventListener('click', (e) => {
-      if (e.target === addModal) addModal.style.display = 'none';
-    });
-    
-    // Обработчик отправки формы
-    document.getElementById('addSchoolForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const edu_org = document.getElementById('schoolName').value.trim();
-      const head_teacher = document.getElementById('headTeacher').value.trim();
-      const peopleList = document.getElementById('schoolPeopleList').value;
-      if (!edu_org || !peopleList) {
-        alert('Заполните название школы и список людей');
-        return;
-      }
-      const collectionId = window.currentCollectionIdForSchools;
-      if (!collectionId) {
-        alert('Ошибка: не выбран сбор');
-        return;
-      }
-      try {
-        const response = await fetch(`/api/collections/${collectionId}/schools`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ edu_org, head_teacher, peopleList })
-        });
-        if (!response.ok) throw new Error('Ошибка сервера');
-        addModal.style.display = 'none';
-        // Перезагружаем модалку школ
-        if (window.openSchoolsModal) {
-          await window.openSchoolsModal(collectionId);
-        }
-        if (window.loadCollections) window.loadCollections();
-      } catch (err) {
-        alert('Ошибка добавления школы: ' + err.message);
-      }
-    });
+    const loadWordBtn = document.getElementById('loadWordBtn');
+    const fileInput = document.getElementById('wordFileInput');
+    if (loadWordBtn && fileInput) {
+      loadWordBtn.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (typeof window.parseWordFile === 'function') {
+          window.parseWordFile(file, (result) => {
+            if (result.schoolName) document.getElementById('schoolName').value = result.schoolName;
+            if (result.fioList.length) document.getElementById('schoolPeopleList').value = result.fioList.join('\n');
+            fileInput.value = '';
+          });
+        } else alert('Функция парсинга Word не загружена');
+      };
+    }
+    document.getElementById('closeAddSchoolModalBtn').onclick = () => addModal.style.display = 'none';
+    document.getElementById('cancelAddSchoolBtn').onclick = () => addModal.style.display = 'none';
   }
+  const form = document.getElementById('addSchoolForm');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const edu_org = document.getElementById('schoolName').value.trim();
+    const head_teacher = document.getElementById('headTeacher').value.trim();
+    const peopleList = document.getElementById('schoolPeopleList').value;
+    if (!edu_org || !peopleList) { alert('Заполните название школы и список людей'); return; }
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      const response = await fetch(`/api/collections/${collectionId}/schools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edu_org, head_teacher, peopleList })
+      });
+      if (!response.ok) throw new Error('Ошибка сервера');
+      await response.json();
+      addModal.style.display = 'none';
+      await loadSchoolsAndRender(collectionId);
+      await window.refreshCollectionStatus(collectionId);
+      window.loadCollections();
+      alert(`✅ Школа "${edu_org}" успешно добавлена.`);
+    } catch (err) { alert('Ошибка: ' + err.message); }
+    finally { submitBtn.disabled = false; form.reset(); }
+  };
   addModal.style.display = 'flex';
-  document.getElementById('addSchoolForm').reset();
 };
 
-window.handleDeleteSchool = async function(e) {
-  e.stopPropagation();
-  const schoolId = this.getAttribute('data-school-id');
+window.handleDeleteSchool = async function(btn) {
+  const schoolId = btn.getAttribute('data-school-id');
   if (!confirm('Удалить школу и всех её участников?')) return;
   try {
     await fetch(`/api/schools/${schoolId}`, { method: 'DELETE' });
-    const collectionId = window.currentCollectionIdForSchools;
-    if (collectionId && window.openSchoolsModal) {
-      await window.openSchoolsModal(collectionId);
+    if (window.currentCollectionIdForSchools) {
+      await loadSchoolsAndRender(window.currentCollectionIdForSchools);
+      const collResp = await fetch('/api/collections', { cache: 'no-store' });
+      const allColl = await collResp.json();
+      const coll = allColl.find(c => c.id == window.currentCollectionIdForSchools);
+      if (coll && coll.schools_count === 0 && coll.status !== 'locked') {
+        await fetch(`/api/collections/${coll.id}/reset-status`, { method: 'POST' });
+      }
+      await window.refreshCollectionStatus(window.currentCollectionIdForSchools);
+      window.loadCollections();
     }
-    if (window.loadCollections) window.loadCollections();
   } catch (err) { alert('Ошибка удаления школы'); }
 };
 
-window.handleEditSchool = async function(e) {
-  e.stopPropagation();
-  const schoolId = this.getAttribute('data-school-id');
-  const row = this.closest('.school-row');
+window.handleEditSchool = async function(btn) {
+  const schoolId = btn.getAttribute('data-school-id');
+  const row = btn.closest('.school-row');
   const currentName = row.querySelector('.school-name').innerText;
   const currentHead = row.querySelector('.school-head').innerText === '—' ? '' : row.querySelector('.school-head').innerText;
-  
   const modal = document.createElement('div');
   modal.className = 'modal';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width:500px;">
-      <div class="modal-header">
-        <h2>Редактировать школу</h2>
-        <button class="close-modal">&times;</button>
-      </div>
-      <div style="padding:16px 24px;">
-        <form id="editSchoolForm">
-          <div class="form-group">
-            <label>Название школы</label>
-            <input type="text" id="editSchoolName" value="${window.escapeHtml(currentName)}" required>
-          </div>
-          <div class="form-group">
-            <label>Руководитель сборов</label>
-            <input type="text" id="editHeadTeacher" value="${window.escapeHtml(currentHead)}">
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn cancel">Отмена</button>
-            <button type="submit" class="btn add">Сохранить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
+  modal.innerHTML = `<div class="modal-content" style="max-width:500px;"><div class="modal-header"><h2>Редактировать школу</h2><button class="close-modal">&times;</button></div>
+    <div style="padding:16px 24px;"><form id="editSchoolForm">
+      <div class="form-group"><label>Название школы</label><input type="text" id="editSchoolName" value="${window.escapeHtml(currentName)}" required></div>
+      <div class="form-group"><label>Руководитель сборов</label><input type="text" id="editHeadTeacher" value="${window.escapeHtml(currentHead)}"></div>
+      <div class="form-actions"><button type="button" class="btn cancel">Отмена</button><button type="submit" class="btn add">Сохранить</button></div>
+    </form></div></div>`;
   document.body.appendChild(modal);
   modal.style.display = 'flex';
   const closeModal = () => modal.remove();
@@ -174,22 +296,8 @@ window.handleEditSchool = async function(e) {
         body: JSON.stringify({ edu_org: newName, head_teacher: newHead || null })
       });
       closeModal();
-      const collectionId = window.currentCollectionIdForSchools;
-      if (collectionId && window.openSchoolsModal) {
-        await window.openSchoolsModal(collectionId);
-      }
-      if (window.loadCollections) window.loadCollections();
+      if (window.currentCollectionIdForSchools) await loadSchoolsAndRender(window.currentCollectionIdForSchools);
+      window.loadCollections();
     } catch (err) { alert('Ошибка редактирования: ' + err.message); }
   });
-};
-
-window.handleSchoolRowClick = function(e) {
-  if (e.target.closest('.edit-school-btn') || e.target.closest('.delete-school-btn')) return;
-  const schoolId = this.getAttribute('data-school-id');
-  const schoolName = this.querySelector('.school-name').innerText;
-  if (window.openPeopleModal) {
-    window.openPeopleModal(schoolId, schoolName);
-  } else {
-    console.error('window.openPeopleModal не определена');
-  }
 };

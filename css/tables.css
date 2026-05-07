@@ -401,3 +401,152 @@ body.dark-theme .edit-school-btn:hover {
 body.dark-theme .delete-school-btn:hover {
   background: #7f1a1a;
 }
+/* ========== НОВЫЕ СТИЛИ ДЛЯ РАЗДЕЛА СБОРЫ ========== */
+.collections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.collections-title-area {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.section-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+.add-collection-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 10px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.add-collection-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59,130,246,0.3);
+}
+.collections-summary {
+  display: flex;
+  gap: 16px;
+  background: #f8fafc;
+  border-radius: 32px;
+  padding: 8px 24px;
+}
+body.dark-theme .collections-summary {
+  background: #1e293b;
+}
+.summary-card {
+  text-align: center;
+  padding: 8px 16px;
+}
+.summary-label {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.summary-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+body.dark-theme .summary-value {
+  color: #e2e8f0;
+}
+/* Статусы */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.status-created {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+.status-schools-added {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.status-locked {
+  background: #d1fae5;
+  color: #065f46;
+}
+body.dark-theme .status-created {
+  background: #334155;
+  color: #cbd5e1;
+}
+body.dark-theme .status-schools-added {
+  background: #713f12;
+  color: #fef08a;
+}
+body.dark-theme .status-locked {
+  background: #064e3b;
+  color: #a7f3d0;
+}
+/* Блок статусов в модалке школ */
+.status-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  padding-bottom: 20px;
+}
+.status-icon {
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  z-index: 2;
+}
+.status-item.active .status-icon {
+  background: #3b82f6;
+  color: white;
+}
+.status-line {
+  position: absolute;
+  left: 15px;
+  top: 40px;
+  width: 2px;
+  height: calc(100% - 20px);
+  background: #e2e8f0;
+  z-index: 1;
+}
+.status-content {
+  flex: 1;
+}
+.status-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.status-date {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+body.dark-theme .status-line {
+  background: #334155;
+}
+.collections-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+}
+.collections-table tbody tr:hover td {
+    background: #f0f9ff;
+}
+body.dark-theme .collections-table tbody tr:hover td {
+    background: #1e3a5f;
+}
