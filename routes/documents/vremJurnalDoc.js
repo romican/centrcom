@@ -23,20 +23,19 @@ async function getSubjectIdByName(name) {
   });
 }
 
-function applyCellStyle(cell, fontSize, horizontalAlign = 'center', verticalAlign = 'middle') {
-  cell.font = { name: 'Times New Roman', size: fontSize, bold: false };
+function applyCellStyle(cell, fontSize, horizontalAlign = 'center', verticalAlign = 'middle', bold = false) {
+  cell.font = { name: 'Times New Roman', size: fontSize, bold: bold };
   cell.alignment = { horizontal: horizontalAlign, vertical: verticalAlign };
 }
 
 async function processSubject(worksheet, subjectName, tagPrefix, people, collectionId) {
   const subjectId = await getSubjectIdByName(subjectName);
   if (!subjectId) {
-    // Только это сообщение оставляем, потому что оно указывает на реальную проблему
     console.warn(`Предмет "${subjectName}" не найден в БД, пропускаем.`);
     return;
   }
 
-  // Все темы по предмету (без DISTINCT) – максимум 8
+  // 1. Все темы по предмету (без DISTINCT) – максимум 8
   const topics = await new Promise((resolve, reject) => {
     db.all(`
       SELECT id, date
@@ -49,9 +48,8 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
     });
   });
   const topicsToUse = topics.slice(0, 8);
-  // Логирование убрано
 
-  // Оценки
+  // 2. Оценки для каждого ученика по темам
   const scoresMap = new Map();
   if (topicsToUse.length) {
     const topicIdPlaceholders = topicsToUse.map(() => '?').join(',');
@@ -73,7 +71,29 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
     }
   }
 
-  // ROWS – список учеников (тег)
+  // 3. Итоговые оценки по этому предмету для каждого ученика (из final_scores)
+  const finalScoresMap = new Map(); // person_id -> final_score
+  if (people.length) {
+    const personIds = people.map(p => p.id);
+    const placeholders = personIds.map(() => '?').join(',');
+    const query = `
+      SELECT person_id, score
+      FROM final_scores
+      WHERE subject_id = ? AND person_id IN (${placeholders})
+    `;
+    const params = [subjectId, ...personIds];
+    const finalRows = await new Promise((resolve, reject) => {
+      db.all(query, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+    for (const row of finalRows) {
+      finalScoresMap.set(row.person_id, row.score);
+    }
+  }
+
+  // 4. Обработка тега {{ROWS_ПРЕФИКС}} – список учеников
   let rowsStartRow = null, rowsStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
@@ -89,11 +109,11 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
       const row = worksheet.getRow(rowsStartRow + i);
       const cell = row.getCell(rowsStartCol);
       cell.value = people[i].full_name;
-      applyCellStyle(cell, 9, 'left', 'middle');
+      applyCellStyle(cell, 9, 'left', 'middle', false);
     }
   }
 
-  // DATES
+  // 5. Обработка тега {{DATES_ПРЕФИКС}} – даты занятий (каждая тема в своей колонке)
   let datesRow = null, datesStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
@@ -109,11 +129,11 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
       const col = datesStartCol + idx;
       const cell = worksheet.getRow(datesRow).getCell(col);
       cell.value = formatDateDDMM(topicsToUse[idx].date);
-      applyCellStyle(cell, 6, 'center', 'middle');
+      applyCellStyle(cell, 6, 'center', 'middle', false);
     }
   }
 
-  // SCORES
+  // 6. Обработка тега {{SCORES_ПРЕФИКС}} – таблица оценок по темам
   let scoresStartRow = null, scoresStartCol = null;
   worksheet.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
@@ -136,9 +156,31 @@ async function processSubject(worksheet, subjectName, tagPrefix, people, collect
         const cell = row.getCell(col);
         cell.value = (score !== undefined) ? score : null;
         if (cell.value !== null) {
-          applyCellStyle(cell, 11, 'center', 'middle');
+          applyCellStyle(cell, 11, 'center', 'middle', false);
         }
       }
+    }
+  }
+
+  // 7. НОВОЕ: Обработка тега {{FINAL_ПРЕФИКС}} – итоговая оценка по предмету (столбец)
+  let finalStartRow = null, finalStartCol = null;
+  worksheet.eachRow((row, rowNumber) => {
+    row.eachCell((cell, colNumber) => {
+      if (cell.value === `{{FINAL_${tagPrefix}}}`) {
+        finalStartRow = rowNumber;
+        finalStartCol = colNumber;
+        cell.value = null;
+      }
+    });
+  });
+  if (finalStartRow !== null) {
+    for (let i = 0; i < Math.min(people.length, 32); i++) {
+      const student = people[i];
+      const finalScore = finalScoresMap.get(student.id);
+      const row = worksheet.getRow(finalStartRow + i);
+      const cell = row.getCell(finalStartCol);
+      cell.value = (finalScore !== undefined) ? finalScore : '—';
+      applyCellStyle(cell, 11, 'center', 'middle', true); // жирный шрифт
     }
   }
 }
@@ -209,6 +251,7 @@ module.exports = async (req, res) => {
       await processSubject(worksheet, subj.name, subj.prefix, people, schoolInfo.collection_id);
     }
 
+    // Общие метки (школа, взвод, руководитель, даты)
     worksheet.eachRow(row => {
       row.eachCell(cell => {
         if (cell && cell.value && typeof cell.value === 'string') {
