@@ -1,0 +1,25 @@
+export let scores_currentCollectionId = null;
+export let scores_currentSchoolId = null;
+export let scores_currentSchoolName = '';
+export let scores_currentPlatoonId = null;
+export let scores_currentSubjectId = 'all';
+export let scores_currentSubjectName = 'Все предметы';
+export let scores_students = [];
+export let scores_topics = [];
+export let scores_scores = {};
+export let scores_final = {};
+export let scores_searchTerm = '';
+export let scores_allSubjects = [];
+
+export function setCollectionId(id) { scores_currentCollectionId = id; }
+export function setSchoolId(id) { scores_currentSchoolId = id; }
+export function setSchoolName(name) { scores_currentSchoolName = name; }
+export function setPlatoonId(id) { scores_currentPlatoonId = id; }
+export function setSubjectId(id) { scores_currentSubjectId = id; }
+export function setSubjectName(name) { scores_currentSubjectName = name; }
+export function setStudents(students) { scores_students = students; }
+export function setTopics(topics) { scores_topics = topics; }
+export function setScores(scores) { scores_scores = scores; }
+export function setFinal(final) { scores_final = final; }
+export function setSearchTerm(term) { scores_searchTerm = term; }
+export function setAllSubjects(subjects) { scores_allSubjects = subjects; }
