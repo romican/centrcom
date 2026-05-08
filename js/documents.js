@@ -7,10 +7,9 @@ const collectionsChecklistDiv = document.getElementById('collectionsChecklist');
 let currentDocType = null;
 let selectedCollectionIds = [];
 
-// Хранилище описаний документов (ключ - id документа)
+// Хранилище описаний документов
 let docDescriptions = {};
 
-// Загрузка описаний из localStorage
 function loadDocDescriptions() {
   const saved = localStorage.getItem('docDescriptions');
   if (saved) {
@@ -18,10 +17,10 @@ function loadDocDescriptions() {
       docDescriptions = JSON.parse(saved);
     } catch(e) {}
   }
-  // Значения по умолчанию
   if (!docDescriptions['svodnaya']) docDescriptions['svodnaya'] = 'Сводная ведомость по школе: список участников, даты сборов.';
   if (!docDescriptions['vrem_jurnal']) docDescriptions['vrem_jurnal'] = 'Временный журнал для школы и взвода: список участников, объединённые ячейки.';
   if (!docDescriptions['fizo']) docDescriptions['fizo'] = 'Протокол выполнения норматива "Бег 100 метров" по взводу.';
+  if (!docDescriptions['hygiene']) docDescriptions['hygiene'] = 'Акт об обеспечении средствами личной гигиены по школам сбора.';
   saveDocDescriptions();
 }
 function saveDocDescriptions() {
@@ -66,7 +65,10 @@ function openEditDescriptionModal(docId, docTitle, currentDesc) {
     const newDesc = modal.querySelector('#docDescTextarea').value.trim();
     setDocDescription(docId, newDesc);
     closeModal();
-    renderDocuments(); // перерисовываем карточки
+    renderDocuments();
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
   });
 }
 
@@ -117,6 +119,7 @@ function showSchoolSelector(schools, docType) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#schoolsList input[type="radio"]:checked');
@@ -198,6 +201,7 @@ function showPlatoonSelector(platoons) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#platoonsList input[type="radio"]:checked');
@@ -284,6 +288,7 @@ function showTempJournalSchoolSelector(schools) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#tempJournalSchoolsList input[type="radio"]:checked');
@@ -356,6 +361,7 @@ function showTempJournalPlatoonSelector(platoons) {
   const closeModal = () => modal.style.display = 'none';
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   
   confirmBtn.onclick = async () => {
     const selectedRadio = document.querySelector('#tempJournalPlatoonsList input[type="radio"]:checked');
@@ -390,13 +396,67 @@ function showTempJournalPlatoonSelector(platoons) {
   };
 }
 
-// Основная функция отрисовки раздела Документы (карточки)
+// ========== ОБРАБОТЧИК ДЛЯ АКТА ГИГИЕНЫ ==========
+async function handleHygieneAct() {
+  try {
+    const resp = await fetch('/api/collections');
+    const collections = await resp.json();
+    if (!collections.length) {
+      alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
+      return;
+    }
+    collectionsChecklistDiv.innerHTML = collections.map(col => `
+      <label style="display: block; margin-bottom: 12px; cursor: pointer;">
+        <input type="checkbox" value="${col.id}"> 
+        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.military_unit})
+      </label>
+    `).join('');
+    window.selectCollectionsModal.style.display = 'flex';
+    
+    const oldHandler = generateDocBtn.onclick;
+    generateDocBtn.onclick = async () => {
+      const checkboxes = collectionsChecklistDiv.querySelectorAll('input[type="checkbox"]:checked');
+      const selectedCollectionIds = Array.from(checkboxes).map(cb => cb.value);
+      if (selectedCollectionIds.length === 0) {
+        alert('Выберите хотя бы один сбор');
+        return;
+      }
+      window.selectCollectionsModal.style.display = 'none';
+      const collectionId = selectedCollectionIds[0];
+      try {
+        const response = await fetch('/api/generate-hygiene-act', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collectionId })
+        });
+        if (!response.ok) throw new Error('Ошибка генерации');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Akt_hygiene_${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      }
+      generateDocBtn.onclick = oldHandler;
+    };
+  } catch (err) {
+    alert('Ошибка загрузки сборов');
+  }
+}
+
+// ========== ОСНОВНАЯ ФУНКЦИЯ ОТРИСОВКИ ==========
 window.renderDocuments = function() {
   loadDocDescriptions();
   
   const svodnayaDesc = getDocDescription('svodnaya');
   const vremDesc = getDocDescription('vrem_jurnal');
   const fizoDesc = getDocDescription('fizo');
+  const hygieneDesc = getDocDescription('hygiene');
   
   const html = `
     <div class="documents-two-columns">
@@ -419,6 +479,14 @@ window.renderDocuments = function() {
               <button class="doc-card-btn edit" data-doc="vrem_jurnal">Редактировать</button>
             </div>
           </div>
+          <div class="doc-card" data-doc="hygiene">
+            <div class="doc-card-title">Акт об обеспечении средствами личной гигиены</div>
+            <div class="doc-card-description">${window.escapeHtml(hygieneDesc)}</div>
+            <div class="doc-card-buttons">
+              <button class="doc-card-btn generate" data-doc="hygiene">Сформировать документ</button>
+              <button class="doc-card-btn edit" data-doc="hygiene">Редактировать</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="doc-column">
@@ -438,7 +506,6 @@ window.renderDocuments = function() {
   `;
   window.contentBody.innerHTML = html;
   
-  // Обработчики для кнопок
   document.querySelectorAll('.doc-card-btn.generate').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -449,6 +516,8 @@ window.renderDocuments = function() {
         await handleVremJournal();
       } else if (docType === 'fizo') {
         await handleFizo();
+      } else if (docType === 'hygiene') {
+        await handleHygieneAct();
       }
     });
   });
@@ -457,8 +526,7 @@ window.renderDocuments = function() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const docType = btn.getAttribute('data-doc');
-      let title = '';
-      let currentDesc = '';
+      let title = '', currentDesc = '';
       if (docType === 'svodnaya') {
         title = 'Сводная ведомость';
         currentDesc = getDocDescription('svodnaya');
@@ -468,13 +536,16 @@ window.renderDocuments = function() {
       } else if (docType === 'fizo') {
         title = 'Физо (100м)';
         currentDesc = getDocDescription('fizo');
+      } else if (docType === 'hygiene') {
+        title = 'Акт об обеспечении средствами личной гигиены';
+        currentDesc = getDocDescription('hygiene');
       }
       openEditDescriptionModal(docType, title, currentDesc);
     });
   });
 };
 
-// Логика для Сводной ведомости (школы)
+// ========== СУЩЕСТВУЮЩИЕ ОБРАБОТЧИКИ (без изменений) ==========
 async function handleSvodnaya() {
   try {
     const resp = await fetch('/api/collections');
@@ -486,7 +557,7 @@ async function handleSvodnaya() {
     collectionsChecklistDiv.innerHTML = collections.map(col => `
       <label style="display: block; margin-bottom: 12px; cursor: pointer;">
         <input type="checkbox" value="${col.id}"> 
-        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.people_count || 0} чел.)
+        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.military_unit})
       </label>
     `).join('');
     window.selectCollectionsModal.style.display = 'flex';
@@ -517,18 +588,11 @@ async function handleSvodnaya() {
       }
       generateDocBtn.onclick = oldHandler;
     };
-    
-    const restoreHandler = () => {
-      generateDocBtn.onclick = oldHandler;
-    };
-    closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });   
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
 }
 
-// Логика для Физо (100м)
 async function handleFizo() {
   try {
     const resp = await fetch('/api/collections');
@@ -540,7 +604,7 @@ async function handleFizo() {
     collectionsChecklistDiv.innerHTML = collections.map(col => `
       <label style="display: block; margin-bottom: 12px; cursor: pointer;">
         <input type="checkbox" value="${col.id}"> 
-        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.people_count || 0} чел.)
+        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.military_unit})
       </label>
     `).join('');
     window.selectCollectionsModal.style.display = 'flex';
@@ -568,18 +632,11 @@ async function handleFizo() {
       }
       generateDocBtn.onclick = oldHandler;
     };
-    
-    const restoreHandler = () => {
-      generateDocBtn.onclick = oldHandler;
-    };
-    closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });   
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
 }
 
-// Логика для Временного журнала
 async function handleVremJournal() {
   try {
     const resp = await fetch('/api/collections');
@@ -591,7 +648,7 @@ async function handleVremJournal() {
     collectionsChecklistDiv.innerHTML = collections.map(col => `
       <label style="display: block; margin-bottom: 12px; cursor: pointer;">
         <input type="checkbox" value="${col.id}"> 
-        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.people_count || 0} чел.)
+        ${window.formatDate(col.date_start)} — ${window.formatDate(col.date_end)} (${col.military_unit})
       </label>
     `).join('');
     window.selectCollectionsModal.style.display = 'flex';
@@ -622,12 +679,6 @@ async function handleVremJournal() {
       }
       generateDocBtn.onclick = oldHandler;
     };
-    
-    const restoreHandler = () => {
-      generateDocBtn.onclick = oldHandler;
-    };
-    closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });    
   } catch (err) {
     alert('Ошибка загрузки сборов');
   }
@@ -635,3 +686,6 @@ async function handleVremJournal() {
 
 closeSelectModalBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
 cancelSelectBtn.addEventListener('click', () => window.selectCollectionsModal.style.display = 'none');
+window.selectCollectionsModal.addEventListener('click', (e) => {
+  if (e.target === window.selectCollectionsModal) window.selectCollectionsModal.style.display = 'none';
+});

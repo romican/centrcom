@@ -17,7 +17,6 @@ window.renderCollections = function(collections) {
   headerPanel.className = 'collections-header';
   headerPanel.innerHTML = `
     <div class="collections-title-area">
-      <h1 class="section-title">Сборы</h1>
       <button class="add-collection-btn" id="addCollectionBtn"><i class="fas fa-plus"></i> Создать новый сбор</button>
     </div>
     <div class="collections-summary" id="collectionsSummary">

@@ -5,6 +5,7 @@ const db = require('../../db/connection');
 const generateSvodnayaDoc = require('./svodnayaDoc');
 const generateFizoPlatoonExcel = require('./fizoPlatoonDoc');
 const generateVremJurnal = require('./vremJurnalDoc');
+const generateHygieneAct = require('./hygieneActDoc');
 
 router.post('/schools/by-collections', (req, res) => {
   const { collectionIds } = req.body;
@@ -29,5 +30,6 @@ router.post('/schools/by-collections', (req, res) => {
 router.post('/generate-school-doc-excel', generateSvodnayaDoc);
 router.post('/generate-fizo-platoon-excel', generateFizoPlatoonExcel);
 router.post('/generate-vrem-jurnal', generateVremJurnal);
+router.post('/generate-hygiene-act', generateHygieneAct);
 
 module.exports = router;
