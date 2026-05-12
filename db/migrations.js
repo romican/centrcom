@@ -66,6 +66,20 @@ function runMigrations() {
       });
     }
   });
+
+  // Таблица логов школы
+  db.run(`
+    CREATE TABLE IF NOT EXISTS school_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      description TEXT,
+      old_value TEXT,
+      new_value TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (school_id) REFERENCES collection_schools(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error(err); else console.log('✓ Таблица school_logs готова'); });
 }
 
 module.exports = { runMigrations };

@@ -79,15 +79,50 @@ async function handleEditClick(e) {
 async function handleDeleteClick(e) {
   const btn = e.currentTarget;
   const topicId = btn.getAttribute('data-id');
-  if (topicId && confirm('Удалить тему? Все оценки по этой теме также будут удалены.')) {
-    try {
-      await deleteTopic(topicId);
-      // После удаления перезагружаем данные (эту функцию передадим из main.js, пока заглушка)
-      if (window.__topicsReloadData) await window.__topicsReloadData();
-    } catch (err) {
-      alert('Не удалось удалить тему: ' + err.message);
+  if (topicId) {
+    const confirmed = await showConfirmModal('Удалить тему? Все оценки по этой теме также будут удалены.');
+    if (confirmed) {
+      try {
+        await deleteTopic(topicId);
+        if (window.__topicsReloadData) await window.__topicsReloadData();
+      } catch (err) {
+        alert('Не удалось удалить тему: ' + err.message);
+      }
     }
   }
+}
+
+// Кастомное модальное окно подтверждения с кнопками ОК и Отмена
+function showConfirmModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:380px; text-align:center; padding:32px 24px 24px 24px;">
+        <div style="width:80px; height:80px; border-radius:50%; background:#f59e0b; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto;">
+          <i class="fas fa-question" style="font-size:36px; color:white;"></i>
+        </div>
+        <h2 style="margin:0 0 16px 0; font-size:1.2rem; font-weight:600; color:inherit;">${message}</h2>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button class="btn cancel" id="confirmCancelBtn" style="padding:10px 24px;">Отмена</button>
+          <button class="btn add" id="confirmOkBtn" style="padding:10px 24px;">ОК</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+
+    const closeModal = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+
+    modal.querySelector('#confirmOkBtn').addEventListener('click', () => closeModal(true));
+    modal.querySelector('#confirmCancelBtn').addEventListener('click', () => closeModal(false));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal(false);
+    });
+  });
 }
 
 export function renderSchedule() {

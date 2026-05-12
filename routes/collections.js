@@ -144,6 +144,11 @@ router.post('/collections/:id/schools', (req, res) => {
           if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
           db.run('COMMIT', err => {
             if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
+            // ЛОГ: создание школы и добавление участников
+            db.run(`INSERT INTO school_logs (school_id, action, description) VALUES (?, 'school_created', ?)`, [schoolId, `Школа создана: ${edu_org}`]);
+            if (lines.length > 1) {
+              db.run(`INSERT INTO school_logs (school_id, action, description) VALUES (?, 'mass_people_added', ?)`, [schoolId, `Было добавлено ${lines.length} учащихся`]);
+            }
             const sql = `
               SELECT s.*, COUNT(p.id) as people_count
               FROM collection_schools s
@@ -171,16 +176,29 @@ router.put('/schools/:schoolId', (req, res) => {
     if (row && row.status === 'locked') {
       return res.status(403).json({ error: 'Сбор закреплён, нельзя редактировать школу' });
     }
-    db.run('BEGIN TRANSACTION', (err) => {
+    // Получаем старые значения для лога
+    db.get(`SELECT edu_org, head_teacher FROM collection_schools WHERE id = ?`, [schoolId], (err, oldRow) => {
       if (err) return res.status(500).json({ error: err.message });
-      db.run(`UPDATE collection_schools SET edu_org = ?, head_teacher = ? WHERE id = ?`, [edu_org, head_teacher || null, schoolId], function(err) {
-        if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-        if (this.changes === 0) { db.run('ROLLBACK'); return res.status(404).json({ error: 'Школа не найдена' }); }
-        db.run(`UPDATE collection_people SET organization = ? WHERE school_id = ?`, [edu_org, schoolId], (err) => {
+      db.run('BEGIN TRANSACTION', (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        db.run(`UPDATE collection_schools SET edu_org = ?, head_teacher = ? WHERE id = ?`, [edu_org, head_teacher || null, schoolId], function(err) {
           if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-          db.run('COMMIT', (err) => {
+          if (this.changes === 0) { db.run('ROLLBACK'); return res.status(404).json({ error: 'Школа не найдена' }); }
+          db.run(`UPDATE collection_people SET organization = ? WHERE school_id = ?`, [edu_org, schoolId], (err) => {
             if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-            res.json({ message: 'Школа обновлена' });
+            db.run('COMMIT', (err) => {
+              if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
+              // Логирование изменения школы
+              if (oldRow) {
+                if (oldRow.edu_org !== edu_org) {
+                  db.run(`INSERT INTO school_logs (school_id, action, description, old_value, new_value) VALUES (?, 'school_renamed', ?, ?, ?)`, [schoolId, 'Название школы изменено', oldRow.edu_org, edu_org]);
+                }
+                if (oldRow.head_teacher !== (head_teacher || null)) {
+                  db.run(`INSERT INTO school_logs (school_id, action, description, old_value, new_value) VALUES (?, 'head_teacher_changed', ?, ?, ?)`, [schoolId, 'Руководитель изменён', oldRow.head_teacher || '—', head_teacher || '—']);
+                }
+              }
+              res.json({ message: 'Школа обновлена' });
+            });
           });
         });
       });
@@ -228,6 +246,8 @@ router.post('/schools/:schoolId/people', (req, res) => {
     [schoolId, full_name, organization],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      // Лог: добавлен участник
+      db.run(`INSERT INTO school_logs (school_id, action, description) VALUES (?, 'person_added', ?)`, [schoolId, `Добавлен участник: ${full_name}`]);
       res.json({ id: this.lastID, message: 'Участник добавлен' });
     }
   );
@@ -235,9 +255,15 @@ router.post('/schools/:schoolId/people', (req, res) => {
 
 router.delete('/collection-people/:personId', (req, res) => {
   const personId = req.params.personId;
-  db.run('DELETE FROM collection_people WHERE id = ?', personId, function(err) {
+  db.get(`SELECT full_name, school_id FROM collection_people WHERE id = ?`, [personId], (err, person) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Участник удалён' });
+    if (!person) return res.status(404).json({ error: 'Участник не найден' });
+    db.run('DELETE FROM collection_people WHERE id = ?', personId, function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      // Лог: удалён участник
+      db.run(`INSERT INTO school_logs (school_id, action, description) VALUES (?, 'person_deleted', ?)`, [person.school_id, `Удалён участник: ${person.full_name}`]);
+      res.json({ message: 'Участник удалён' });
+    });
   });
 });
 
@@ -245,10 +271,30 @@ router.put('/collection-people/:personId', (req, res) => {
   const personId = req.params.personId;
   const { full_name } = req.body;
   if (!full_name) return res.status(400).json({ error: 'ФИО обязательно' });
-  db.run('UPDATE collection_people SET full_name = ? WHERE id = ?', [full_name, personId], function(err) {
+  db.get(`SELECT full_name, school_id FROM collection_people WHERE id = ?`, [personId], (err, person) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'ФИО обновлено' });
+    if (!person) return res.status(404).json({ error: 'Участник не найден' });
+    db.run('UPDATE collection_people SET full_name = ? WHERE id = ?', [full_name, personId], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      // Лог: изменён участник
+      db.run(`INSERT INTO school_logs (school_id, action, description, old_value, new_value) VALUES (?, 'person_edited', ?, ?, ?)`,
+        [person.school_id, `Изменён участник`, person.full_name, full_name]);
+      res.json({ message: 'ФИО обновлено' });
+    });
   });
+});
+
+// ========== ЛОГИ ШКОЛЫ ==========
+router.get('/schools/:schoolId/logs', (req, res) => {
+  const { schoolId } = req.params;
+  db.all(
+    `SELECT * FROM school_logs WHERE school_id = ? ORDER BY created_at ASC`,
+    [schoolId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
 });
 
 module.exports = router;

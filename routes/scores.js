@@ -25,7 +25,6 @@ router.get('/scores/platoon/:platoonId/students', (req, res) => {
   });
 });
 
-// ========== ВАЖНО: этот маршрут был добавлен ==========
 router.get('/scores/platoon/:platoonId/topics', (req, res) => {
   const { platoonId } = req.params;
   const sql = `
@@ -245,13 +244,13 @@ router.post('/scores/calculate-final', (req, res) => {
     }
   });
 });
+
 // Пакетное сохранение итоговых оценок
 router.post('/scores/batch-final', (req, res) => {
-  const { updates } = req.body; // массив { person_id, subject_id, score }
+  const { updates } = req.body;
   if (!updates || !updates.length) {
     return res.status(400).json({ error: 'Нет данных для сохранения' });
   }
-  const db = require('../db/connection');
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     const stmt = db.prepare(`
@@ -259,17 +258,59 @@ router.post('/scores/batch-final', (req, res) => {
       VALUES (?, ?, ?)
       ON CONFLICT(person_id, subject_id) DO UPDATE SET score = excluded.score
     `);
+    let hasError = false;
     for (const u of updates) {
-      stmt.run([u.person_id, u.subject_id, u.score]);
+      stmt.run([u.person_id, u.subject_id, u.score], (err) => {
+        if (err) {
+          hasError = true;
+          console.error('Batch final insert error:', err.message);
+        }
+      });
     }
     stmt.finalize();
-    db.run('COMMIT', (err) => {
-      if (err) {
-        db.run('ROLLBACK');
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ message: `Сохранено ${updates.length} итоговых оценок` });
+    if (!hasError) {
+      db.run('COMMIT', (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Ошибка коммита: ' + err.message });
+        }
+        res.json({ message: `Сохранено ${updates.length} итоговых оценок` });
+      });
+    } else {
+      db.run('ROLLBACK');
+      res.status(500).json({ error: 'Ошибка при вставке итоговых оценок' });
+    }
+  });
+});
+
+// ========== НОВЫЙ МАРШРУТ: пакетное получение оценок и финальных оценок ==========
+router.post('/scores/batch-scores', (req, res) => {
+  const { person_ids } = req.body;
+  if (!person_ids || !person_ids.length) {
+    return res.status(400).json({ error: 'Не указаны person_ids' });
+  }
+  const placeholders = person_ids.map(() => '?').join(',');
+  const scoresSql = `SELECT person_id, topic_id, score FROM scores WHERE person_id IN (${placeholders})`;
+  const finalsSql = `SELECT person_id, subject_id, score FROM final_scores WHERE person_id IN (${placeholders})`;
+
+  db.all(scoresSql, person_ids, (err, scoresRows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const scoresByPerson = {};
+    scoresRows.forEach(r => {
+      if (!scoresByPerson[r.person_id]) scoresByPerson[r.person_id] = {};
+      scoresByPerson[r.person_id][r.topic_id] = r.score;
+    });
+
+    db.all(finalsSql, person_ids, (err, finalRows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const finalsByPerson = {};
+      finalRows.forEach(r => {
+        if (!finalsByPerson[r.person_id]) finalsByPerson[r.person_id] = {};
+        finalsByPerson[r.person_id][r.subject_id] = r.score;
+      });
+      res.json({ scores: scoresByPerson, finals: finalsByPerson });
     });
   });
 });
+
 module.exports = router;

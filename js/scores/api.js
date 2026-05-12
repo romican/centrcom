@@ -122,6 +122,24 @@ export async function batchFinalScores(updates) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ updates })
   });
-  if (!resp.ok) throw new Error('Ошибка сохранения итоговых оценок');
+  if (!resp.ok) {
+    let serverErr = 'Ошибка сохранения итоговых оценок';
+    try {
+      const errData = await resp.json();
+      serverErr = errData.error || serverErr;
+    } catch(e) {}
+    throw new Error(serverErr);
+  }
+  return resp.json();
+}
+
+// НОВИНКА: пакетная загрузка всех оценок и финальных оценок по массиву ID
+export async function fetchBatchScoresAndFinals(personIds) {
+  const resp = await fetch('/api/scores/batch-scores', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ person_ids: personIds })
+  });
+  if (!resp.ok) throw new Error('Ошибка пакетной загрузки оценок');
   return resp.json();
 }

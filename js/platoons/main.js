@@ -86,52 +86,46 @@ function renderPlatoonsSection() {
   document.getElementById('addToPlatoonBtn').addEventListener('click', window.bulkAddToPlatoon);
   document.getElementById('removeFromPlatoonBtn').addEventListener('click', window.bulkRemoveFromPlatoon);
 
-  const autoDistributeModal = document.createElement('div');
-  autoDistributeModal.id = 'autoDistributeModal';
-  autoDistributeModal.className = 'modal';
-  autoDistributeModal.innerHTML = `
-    <div class="modal-content" style="max-width: 450px;">
-      <div class="modal-header">
-        <h2><i class="fas fa-magic"></i> Автоматическое распределение</h2>
-        <button class="close-modal" id="closeAutoDistributeModalBtn">&times;</button>
+  // Инициализация модального окна "Распределить автоматически" (создаётся один раз)
+  if (!document.getElementById('autoDistributeModal')) {
+    const autoDistributeModal = document.createElement('div');
+    autoDistributeModal.id = 'autoDistributeModal';
+    autoDistributeModal.className = 'modal';
+    autoDistributeModal.innerHTML = `
+      <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-magic"></i> Автоматическое распределение</h2>
+          <button class="close-modal" id="closeAutoDistributeModalBtn">&times;</button>
+        </div>
+        <div style="padding: 16px 24px;">
+          <div class="form-group">
+            <label>Максимум человек во взводе:</label>
+            <input type="number" id="maxPerPlatoon" value="31" min="1" step="1" required>
+          </div>
+          <div class="form-group">
+            <label>Количество взводов (оставьте пустым для авто-расчёта):</label>
+            <input type="number" id="targetPlatoonsCount" placeholder="Например, 5">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn cancel" id="cancelAutoDistributeBtn">Отмена</button>
+            <button type="button" class="btn add" id="confirmAutoDistributeBtn">Распределить</button>
+          </div>
+        </div>
       </div>
-      <div style="padding: 16px 24px;">
-        <div class="form-group">
-          <label>Максимум человек во взводе:</label>
-          <input type="number" id="maxPerPlatoon" value="31" min="1" step="1" required>
-        </div>
-        <div class="form-group">
-          <label>Количество взводов (оставьте пустым для авто-расчёта):</label>
-          <input type="number" id="targetPlatoonsCount" placeholder="Например, 5">
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn cancel" id="cancelAutoDistributeBtn">Отмена</button>
-          <button type="button" class="btn add" id="confirmAutoDistributeBtn">Распределить</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(autoDistributeModal);
-  const closeAutoModal = () => autoDistributeModal.style.display = 'none';
-  document.getElementById('closeAutoDistributeModalBtn').addEventListener('click', closeAutoModal);
-  document.getElementById('cancelAutoDistributeBtn').addEventListener('click', closeAutoModal);
+    `;
+    document.body.appendChild(autoDistributeModal);
 
-  document.getElementById('autoDistributeBtn').addEventListener('click', () => {
-    if (!platoon_currentCollectionId) {
-      alert('Сначала выберите сбор');
-      return;
-    }
-    if (window.platoon_platoons && window.platoon_platoons.length > 0) {
-      alert('Удалите все взводы для повторного автоматического распределения');
-      return;
-    }
-    autoDistributeModal.style.display = 'flex';
-    document.getElementById('confirmAutoDistributeBtn').onclick = async () => {
+    const closeModal = () => autoDistributeModal.style.display = 'none';
+    document.getElementById('closeAutoDistributeModalBtn').addEventListener('click', closeModal);
+    document.getElementById('cancelAutoDistributeBtn').addEventListener('click', closeModal);
+
+    // Обработчик "Распределить"
+    document.getElementById('confirmAutoDistributeBtn').addEventListener('click', async () => {
       const maxPerPlatoon = parseInt(document.getElementById('maxPerPlatoon').value) || 31;
       let targetPlatoonsCount = parseInt(document.getElementById('targetPlatoonsCount').value);
       if (isNaN(targetPlatoonsCount)) targetPlatoonsCount = null;
       if (maxPerPlatoon < 1) { alert('Максимум человек должен быть не менее 1'); return; }
-      closeAutoModal();
+      closeModal();
       try {
         const response = await fetch(`/api/collections/${platoon_currentCollectionId}/auto-distribute`, {
           method: 'POST',
@@ -143,7 +137,20 @@ function renderPlatoonsSection() {
         alert(data.message);
         await platoon_loadData();
       } catch (err) { alert('Ошибка: ' + err.message); }
-    };
+    });
+  }
+
+  // Кнопка "Распределить автоматически" – открывает модалку
+  document.getElementById('autoDistributeBtn').addEventListener('click', () => {
+    if (!platoon_currentCollectionId) {
+      alert('Сначала выберите сбор');
+      return;
+    }
+    if (window.platoon_platoons && window.platoon_platoons.length > 0) {
+      alert('Удалите все взводы для повторного автоматического распределения');
+      return;
+    }
+    document.getElementById('autoDistributeModal').style.display = 'flex';
   });
 }
 

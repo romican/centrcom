@@ -1,12 +1,41 @@
 import { TOPICS_SCHEDULE } from './config.js';
 import { fetchSubjects, addTopic, deleteTopic } from './api.js';
 
+/**
+ * Показывает кастомную модалку с сообщением.
+ * Аналогична showLockStatusModal, но с иконкой fa-check.
+ */
+function showNotificationModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:320px; text-align:center; padding:32px 24px 24px 24px;">
+        <div style="width:80px; height:80px; border-radius:50%; background:#10b981; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto;">
+          <i class="fas fa-check" style="font-size:36px; color:white;"></i>
+        </div>
+        <h2 style="margin:0 0 16px 0; font-size:1.3rem; font-weight:600;">${message}</h2>
+        <button class="btn add" style="min-width:100px;">Ок</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    const closeModal = () => {
+      modal.remove();
+      resolve();
+    };
+    modal.querySelector('.btn.add').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  });
+}
+
 export async function autoAddTopicsFromSchedule(collectionId, currentTopics, reloadDataCallback) {
   if (!collectionId) {
     alert('Сначала выберите сбор');
     return false;
   }
-  if (!confirm('Автоматическое добавление тем по расписанию заменит все текущие темы. Продолжить?')) return false;
 
   // Получить информацию о текущем сборе
   const collectionsResp = await fetch('/api/collections');
@@ -61,6 +90,6 @@ export async function autoAddTopicsFromSchedule(collectionId, currentTopics, rel
   }
 
   if (reloadDataCallback) await reloadDataCallback();
-  alert(`Темы добавлены по расписанию. Добавлено ${addedCount} тем.`);
+  await showNotificationModal(`Темы добавлены по расписанию. Добавлено ${addedCount} тем.`);
   return true;
 }

@@ -27,6 +27,7 @@ function showLockStatusModal(message, locked) {
     });
   });
 }
+
 function formatShortName(fullName) {
   if (!fullName || fullName === '—') return '—';
   const parts = fullName.trim().split(/\s+/);
@@ -36,6 +37,7 @@ function formatShortName(fullName) {
   const middleInitial = parts[2] ? parts[2].charAt(0).toUpperCase() + '.' : '';
   return `${lastName} ${firstInitial}${middleInitial}`;
 }
+
 window.refreshCollectionStatus = async function(collectionId) {
   await new Promise(r => setTimeout(r, 200));
   const resp = await fetch('/api/collections', { cache: 'no-store' });
@@ -113,7 +115,7 @@ function ensureSchoolsModal() {
   modal.className = 'modal';
   modal.innerHTML = `<div class="modal-content" style="max-width:1100px; height:85vh; display:flex; flex-direction:row; padding:0; overflow:hidden;">
     <div style="flex:2; display:flex; flex-direction:column; overflow:hidden; border-right:1px solid #e2e8f0;">
-      <div class="modal-header" style="flex-shrink:0;"><h2><i class="fas fa-school"></i> Школы в сборе</h2><div style="display:flex; align-items:center; gap:12px;"><input type="text" id="searchSchoolInput" placeholder="Поиск по школе..." style="padding:8px 12px; border-radius:20px; border:1px solid #ccc; width:180px;"><button class="close-modal" id="closeSchoolsModalBtn">&times;</button></div></div>
+      <div class="modal-header" style="flex-shrink:0;"><h2><i class="fas fa-school"></i> Школы в сборе</h2><div style="display:flex; align-items:center; gap:12px;"><input type="text" id="searchSchoolInput" placeholder="Поиск по школе..." style="padding:8px 12px; border-radius:20px; border:1px solid #ccc; width:180px;"></div></div>
       <div id="schoolsInfo" style="margin:0 20px 12px 20px; flex-shrink:0;"></div>
       <div style="flex:1; overflow-y:auto; padding:0 20px;" id="schoolsListContainer">
         <table class="schools-table" id="schoolsTable">
@@ -134,18 +136,23 @@ function ensureSchoolsModal() {
       </div>
     </div>
     <div style="flex:1; display:flex; flex-direction:column; background:#f8fafc; overflow-y:auto;" class="status-panel">
-      <div class="modal-header" style="border-bottom:none;"><h2><i class="fas fa-chart-line"></i> Статус сборов</h2></div>
+      <div class="modal-header" style="border-bottom:none; justify-content:space-between;">
+        <h2><i class="fas fa-chart-line"></i> Статус сборов</h2>
+        <button class="close-modal" id="closeSchoolsModalBtn">&times;</button>
+      </div>
       <div id="collectionStatusList" style="padding:16px; display:flex; flex-direction:column; gap:20px;"></div>
-    </div>
-  </div>`;
+    </div>`;
   document.body.appendChild(modal);
 }
 
 async function loadSchoolsAndRender(collectionId) {
-  const resp = await fetch(`/api/collections/${collectionId}/schools`);
-  const schools = await resp.json();
   const tbody = document.getElementById('schoolsTableBody');
   if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="4"><div class="schools-loader"><div class="loader-spinner"></div></div></td></tr>`;
+
+  const resp = await fetch(`/api/collections/${collectionId}/schools?_=${Date.now()}`, { cache: 'no-store' });
+  const schools = await resp.json();
+
   if (!schools.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="schools-table-empty">Нет школ. Нажмите «Добавить школу».</td></tr>';
   } else {
@@ -163,6 +170,30 @@ async function loadSchoolsAndRender(collectionId) {
   }
   attachSchoolButtons();
   return schools;
+}
+
+/**
+ * Ожидает, пока количество участников в новой школе станет равным expectedCount.
+ * Показывает лоадер в таблице школ.
+ */
+async function waitForSchoolCount(collectionId, expectedCount, maxWaitMs = 10000) {
+  const tbody = document.getElementById('schoolsTableBody');
+  if (!tbody) return false;
+  tbody.innerHTML = `<tr><td colspan="4"><div class="schools-loader"><div class="loader-spinner"></div></div></td></tr>`;
+
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    const resp = await fetch(`/api/collections/${collectionId}/schools?_=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) break;
+    const schools = await resp.json();
+    // Ищем школу с максимальным id (последняя добавленная)
+    const lastSchool = schools.reduce((max, s) => (s.id > max.id ? s : max), schools[0]);
+    if (lastSchool && lastSchool.people_count >= expectedCount) {
+      return true; // данные актуальны
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return false; // таймаут
 }
 
 function attachSchoolButtons() {
@@ -194,7 +225,7 @@ window.openSchoolsModal = async function(collectionId) {
       <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}<br>
       <strong>Руководитель:</strong> ${window.escapeHtml(collection.head_teacher || '—')}`;
   }
-await loadSchoolsAndRender(collectionId);
+  await loadSchoolsAndRender(collectionId);
   window.renderCollectionStatus(collection);
   await window.refreshCollectionStatus(collectionId);
 
@@ -225,7 +256,7 @@ await loadSchoolsAndRender(collectionId);
         window.loadCollections();
       } else alert('Ошибка при закреплении');
     };
-        unlockBtn.onclick = async () => {
+    unlockBtn.onclick = async () => {
       const resp = await fetch(`/api/collections/${collectionId}/unlock`, { method: 'POST' });
       if (resp.ok) {
         await showLockStatusModal('Сбор откреплён', false);
@@ -294,13 +325,16 @@ window.openAddSchoolModal = function(collectionId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ edu_org, head_teacher, peopleList })
       });
-      if (!response.ok) throw new Error('Ошибка сервера');
+if (!response.ok) throw new Error('Ошибка сервера');
       await response.json();
+      const lines = peopleList.split(/\r?\n/).filter(l => l.trim().length > 0);
+      const expectedPeople = lines.length;
       addModal.style.display = 'none';
+      // Ожидаем, пока сервер обновит количество участников
+      await waitForSchoolCount(collectionId, expectedPeople);
       await loadSchoolsAndRender(collectionId);
       await window.refreshCollectionStatus(collectionId);
       window.loadCollections();
-      alert(`✅ Школа "${edu_org}" успешно добавлена.`);
     } catch (err) { alert('Ошибка: ' + err.message); }
     finally { submitBtn.disabled = false; form.reset(); }
   };
