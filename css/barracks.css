@@ -50,7 +50,21 @@
 .info-school-item i { color: #3b82f6; width: 18px; }
 .school-count { margin-left: auto; font-weight: 500; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; }
 .info-empty { color: #94a3b8; font-size: 0.8rem; font-style: italic; padding: 8px; text-align: center; }
+/* ========== СТИЛИ ДЛЯ АКТИВНЫХ ЭЛЕМЕНТОВ (КАЗАРМА / ЭТАЖ) ========== */
+/* Кнопка редактирования становится белой на синем фоне */
+.barrack-item.active .edit-barrack {
+  color: white !important;
+}
+.barrack-item.active .edit-barrack:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
 
+.location-item.active .edit-location {
+  color: white !important;
+}
+.location-item.active .edit-location:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
 body.dark-theme .barracks-sidebar, body.dark-theme .barracks-main { background: #1e293b; }
 body.dark-theme .barracks-collection-select { background: #0f172a; border-color: #334155; color: white; }
 body.dark-theme .barrack-item, body.dark-theme .location-item { background: #334155; color: #e2e8f0; }

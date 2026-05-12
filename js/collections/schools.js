@@ -1,4 +1,41 @@
 // ========== МОДАЛКА ШКОЛ, СТАТУСЫ, ДОБАВЛЕНИЕ/УДАЛЕНИЕ/РЕДАКТИРОВАНИЕ ШКОЛ ==========
+// Красивое уведомление о статусе закрепления
+function showLockStatusModal(message, locked) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    const icon = locked ? 'fa-lock' : 'fa-lock-open';
+    const color = locked ? '#10b981' : '#f59e0b';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:320px; text-align:center; padding:32px 24px 24px 24px;">
+        <div style="width:80px; height:80px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto;">
+          <i class="fas ${icon}" style="font-size:36px; color:white;"></i>
+        </div>
+        <h2 style="margin:0 0 16px 0; font-size:1.3rem; font-weight:600;">${message}</h2>
+        <button class="btn add" style="min-width:100px;">Ок</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    const closeModal = () => {
+      modal.remove();
+      resolve();
+    };
+    modal.querySelector('.btn.add').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  });
+}
+function formatShortName(fullName) {
+  if (!fullName || fullName === '—') return '—';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  const lastName = parts[0];
+  const firstInitial = parts[1].charAt(0).toUpperCase() + '.';
+  const middleInitial = parts[2] ? parts[2].charAt(0).toUpperCase() + '.' : '';
+  return `${lastName} ${firstInitial}${middleInitial}`;
+}
 window.refreshCollectionStatus = async function(collectionId) {
   await new Promise(r => setTimeout(r, 200));
   const resp = await fetch('/api/collections', { cache: 'no-store' });
@@ -26,6 +63,13 @@ window.refreshCollectionStatus = async function(collectionId) {
       lockBtn.style.opacity = lockBtn.disabled ? '0.5' : '1';
       unlockBtn.style.opacity = unlockBtn.disabled ? '0.5' : '1';
     }
+  }
+
+  const addSchoolBtn = document.getElementById('addSchoolBtn');
+  if (addSchoolBtn) {
+    addSchoolBtn.disabled = (collection.status === 'locked');
+    addSchoolBtn.style.opacity = addSchoolBtn.disabled ? '0.5' : '1';
+    addSchoolBtn.style.cursor = addSchoolBtn.disabled ? 'not-allowed' : 'pointer';
   }
 };
 
@@ -71,13 +115,25 @@ function ensureSchoolsModal() {
     <div style="flex:2; display:flex; flex-direction:column; overflow:hidden; border-right:1px solid #e2e8f0;">
       <div class="modal-header" style="flex-shrink:0;"><h2><i class="fas fa-school"></i> Школы в сборе</h2><div style="display:flex; align-items:center; gap:12px;"><input type="text" id="searchSchoolInput" placeholder="Поиск по школе..." style="padding:8px 12px; border-radius:20px; border:1px solid #ccc; width:180px;"><button class="close-modal" id="closeSchoolsModalBtn">&times;</button></div></div>
       <div id="schoolsInfo" style="margin:0 20px 12px 20px; flex-shrink:0;"></div>
-      <div style="flex:1; overflow-y:auto; padding:0 20px;" id="schoolsListContainer"><table style="width:100%; border-collapse:collapse;" id="schoolsTable"><thead><tr><th>Школа</th><th>Руководитель</th><th>Кол-во человек</th><th style="width:120px">Действия</th></tr></thead><tbody id="schoolsTableBody"></tbody></table></div>
+      <div style="flex:1; overflow-y:auto; padding:0 20px;" id="schoolsListContainer">
+        <table class="schools-table" id="schoolsTable">
+          <thead>
+            <tr>
+              <th class="schools-table-header-cell">Школа</th>
+              <th class="schools-table-header-cell">Руководитель</th>
+              <th class="schools-table-header-cell schools-table-header-center">Кол‑во человек</th>
+              <th class="schools-table-header-cell" style="width:120px">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="schoolsTableBody"></tbody>
+        </table>
+      </div>
       <div style="flex-shrink:0; padding:12px 20px 16px 20px; background:inherit; border-top:1px solid #e2e8f0;">
         <button id="addSchoolBtn" class="btn add" style="width:100%;"><i class="fas fa-plus"></i> Добавить школу</button>
         <div style="display:flex; gap:12px; margin-top:12px;"><button id="lockCollectionBtn" class="btn" style="background:#10b981; color:white; width:100%;"><i class="fas fa-lock"></i> Закрепить</button><button id="unlockCollectionBtn" class="btn" style="background:#ef4444; color:white; width:100%;"><i class="fas fa-lock-open"></i> Открепить</button></div>
       </div>
     </div>
-    <div style="flex:1; display:flex; flex-direction:column; background:#f8fafc; overflow-y:auto;">
+    <div style="flex:1; display:flex; flex-direction:column; background:#f8fafc; overflow-y:auto;" class="status-panel">
       <div class="modal-header" style="border-bottom:none;"><h2><i class="fas fa-chart-line"></i> Статус сборов</h2></div>
       <div id="collectionStatusList" style="padding:16px; display:flex; flex-direction:column; gap:20px;"></div>
     </div>
@@ -91,31 +147,36 @@ async function loadSchoolsAndRender(collectionId) {
   const tbody = document.getElementById('schoolsTableBody');
   if (!tbody) return;
   if (!schools.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Нет школ. Нажмите "Добавить школу".</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="schools-table-empty">Нет школ. Нажмите «Добавить школу».</td></tr>';
   } else {
-    tbody.innerHTML = schools.map(school => `<tr class="school-row" data-school-id="${school.id}">
-      <td class="school-name">${window.escapeHtml(school.edu_org)}</td>
-      <td class="school-head">${window.escapeHtml(school.head_teacher || '—')}</td>
-      <td class="school-count">${school.people_count || 0}</td>
-      <td class="school-actions"><button class="edit-school-btn" data-school-id="${school.id}"><i class="fas fa-edit"></i></button><button class="delete-school-btn" data-school-id="${school.id}"><i class="fas fa-trash-alt"></i></button></td>
-    </tr>`).join('');
+    tbody.innerHTML = schools.map(school => `
+      <tr class="schools-table-row" data-school-id="${school.id}">
+        <td class="schools-table-name">${window.escapeHtml(school.edu_org)}</td>
+        <td class="schools-table-head">${window.escapeHtml(formatShortName(school.head_teacher))}</td>
+        <td class="schools-table-count">${school.people_count || 0}</td>
+        <td class="schools-table-actions">
+          <button class="schools-table-edit" data-school-id="${school.id}"><i class="fas fa-edit"></i></button>
+          <button class="schools-table-delete" data-school-id="${school.id}"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>
+    `).join('');
   }
   attachSchoolButtons();
   return schools;
 }
 
 function attachSchoolButtons() {
-  document.querySelectorAll('.delete-school-btn').forEach(btn => {
+  document.querySelectorAll('.schools-table-delete').forEach(btn => {
     btn.onclick = (e) => { e.stopPropagation(); window.handleDeleteSchool(btn); };
   });
-  document.querySelectorAll('.edit-school-btn').forEach(btn => {
+  document.querySelectorAll('.schools-table-edit').forEach(btn => {
     btn.onclick = (e) => { e.stopPropagation(); window.handleEditSchool(btn); };
   });
-  document.querySelectorAll('.school-row').forEach(row => {
+  document.querySelectorAll('.schools-table-row').forEach(row => {
     row.onclick = (e) => {
-      if (e.target.closest('.edit-school-btn') || e.target.closest('.delete-school-btn')) return;
+      if (e.target.closest('.schools-table-edit') || e.target.closest('.schools-table-delete')) return;
       const schoolId = row.getAttribute('data-school-id');
-      const schoolName = row.querySelector('.school-name').innerText;
+      const schoolName = row.querySelector('.schools-table-name').innerText;
       if (window.openPeopleModal) window.openPeopleModal(schoolId, schoolName);
     };
   });
@@ -133,8 +194,9 @@ window.openSchoolsModal = async function(collectionId) {
       <strong>Войсковая часть:</strong> ${window.escapeHtml(collection.military_unit)}<br>
       <strong>Руководитель:</strong> ${window.escapeHtml(collection.head_teacher || '—')}`;
   }
-  await loadSchoolsAndRender(collectionId);
+await loadSchoolsAndRender(collectionId);
   window.renderCollectionStatus(collection);
+  await window.refreshCollectionStatus(collectionId);
 
   const lockBtn = document.getElementById('lockCollectionBtn');
   const unlockBtn = document.getElementById('unlockCollectionBtn');
@@ -156,19 +218,17 @@ window.openSchoolsModal = async function(collectionId) {
     lockBtn.style.opacity = lockBtn.disabled ? '0.5' : '1';
     unlockBtn.style.opacity = unlockBtn.disabled ? '0.5' : '1';
     lockBtn.onclick = async () => {
-      if (!confirm('Закрепить сбор? После этого нельзя будет добавлять/удалять/редактировать школы.')) return;
       const resp = await fetch(`/api/collections/${collectionId}/lock`, { method: 'POST' });
       if (resp.ok) {
-        alert('Сбор закреплён');
+        await showLockStatusModal('Сбор закреплён', true);
         await window.refreshCollectionStatus(collectionId);
         window.loadCollections();
       } else alert('Ошибка при закреплении');
     };
-    unlockBtn.onclick = async () => {
-      if (!confirm('Открепить сбор? Станет доступно редактирование школ.')) return;
+        unlockBtn.onclick = async () => {
       const resp = await fetch(`/api/collections/${collectionId}/unlock`, { method: 'POST' });
       if (resp.ok) {
-        alert('Сбор откреплён');
+        await showLockStatusModal('Сбор откреплён', false);
         await window.refreshCollectionStatus(collectionId);
         window.loadCollections();
       } else alert('Ошибка при откреплении');
@@ -268,9 +328,9 @@ window.handleDeleteSchool = async function(btn) {
 
 window.handleEditSchool = async function(btn) {
   const schoolId = btn.getAttribute('data-school-id');
-  const row = btn.closest('.school-row');
-  const currentName = row.querySelector('.school-name').innerText;
-  const currentHead = row.querySelector('.school-head').innerText === '—' ? '' : row.querySelector('.school-head').innerText;
+  const row = btn.closest('.schools-table-row');
+  const currentName = row.querySelector('.schools-table-name').innerText;
+  const currentHead = row.querySelector('.schools-table-head').innerText === '—' ? '' : row.querySelector('.schools-table-head').innerText;
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.innerHTML = `<div class="modal-content" style="max-width:500px;"><div class="modal-header"><h2>Редактировать школу</h2><button class="close-modal">&times;</button></div>
