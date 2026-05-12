@@ -1,0 +1,49 @@
+/* ========== КАЗАРМЫ ========== */
+.barracks-container { display: flex; gap: 24px; }
+.barracks-sidebar { width: 300px; background: white; border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); padding: 20px; }
+.select-collection { margin-bottom: 16px; }
+.barracks-collection-select { width: 100%; padding: 10px; border-radius: 16px; border: 1px solid #e2e8f0; background: white; font-family: inherit; }
+.barracks-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px; }
+.add-barrack-btn, .add-location-btn { background: #3b82f6; color: white; border: none; border-radius: 40px; padding: 8px 16px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.add-barrack-btn:hover, .add-location-btn:hover { background: #2563eb; transform: translateY(-1px); }
+.barracks-list, .locations-list { list-style: none; margin: 0; padding: 0; }
+.barrack-item, .location-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; margin-bottom: 8px; background: #f8fafc; border-radius: 16px; cursor: pointer; transition: all 0.2s; }
+.barrack-item:hover, .location-item:hover { background: #e0f2fe; }
+.barrack-item.active, .location-item.active { background: #3b82f6; color: white; }
+.barrack-actions, .location-actions { display: flex; gap: 8px; }
+.edit-barrack, .edit-location, .delete-barrack, .delete-location { background: none; border: none; cursor: pointer; font-size: 1.1rem; width: 28px; height: 28px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; }
+.edit-barrack, .edit-location { color: #3b82f6; }
+.edit-barrack:hover, .edit-location:hover { background: #dbeafe; }
+.delete-barrack, .delete-location { color: #ef4444; font-size: 1.3rem; }
+.delete-barrack:hover, .delete-location:hover { background: #fee2e2; }
+
+.barracks-main { flex: 1; background: white; border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); padding: 20px; }
+.locations-header, .schools-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px; }
+.schools-columns { display: flex; gap: 32px; margin-top: 8px; }
+.assigned-schools, .unassigned-schools { flex: 1; }
+.assigned-schools h4, .unassigned-schools h4 { font-size: 1rem; font-weight: 600; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.schools-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.schools-list li { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease; border: 1px solid #e2e8f0; }
+.schools-list li:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+.schools-list li span { font-size: 0.9rem; font-weight: 500; color: #1e293b; flex: 1; padding-right: 12px; line-height: 1.3; }
+.assign-school, .unassign-school { background: none; border: none; width: 32px; height: 32px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1rem; }
+.assign-school { background: #10b981; color: white; }
+.assign-school:hover { background: #059669; transform: scale(1.05); }
+.unassign-school { background: #ef4444; color: white; }
+.unassign-school:hover { background: #dc2626; transform: scale(1.05); }
+
+/* Тёмная тема */
+body.dark-theme .barracks-sidebar, body.dark-theme .barracks-main { background: #1e293b; }
+body.dark-theme .barracks-collection-select { background: #0f172a; border-color: #334155; color: white; }
+body.dark-theme .barrack-item, body.dark-theme .location-item { background: #334155; color: #e2e8f0; }
+body.dark-theme .barrack-item:hover, body.dark-theme .location-item:hover { background: #475569; }
+body.dark-theme .edit-barrack, body.dark-theme .edit-location { color: #60a5fa; }
+body.dark-theme .edit-barrack:hover, body.dark-theme .edit-location:hover { background: #1e40af; }
+body.dark-theme .delete-barrack, body.dark-theme .delete-location { color: #f87171; }
+body.dark-theme .delete-barrack:hover, body.dark-theme .delete-location:hover { background: #7f1a1a; }
+body.dark-theme .assigned-schools h4, body.dark-theme .unassigned-schools h4 { border-bottom-color: #334155; color: #e2e8f0; }
+body.dark-theme .schools-list li { background: #1e293b; border-color: #334155; }
+body.dark-theme .schools-list li span { color: #e2e8f0; }
+body.dark-theme .schools-list li:hover { border-color: #475569; background: #0f172a; }
+body.dark-theme .add-barrack-btn, body.dark-theme .add-location-btn { background: #2563eb; }
+body.dark-theme .add-barrack-btn:hover, body.dark-theme .add-location-btn:hover { background: #1d4ed8; }

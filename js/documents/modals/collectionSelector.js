@@ -1,17 +1,18 @@
-// ========== Модалка выбора одного или нескольких сборов ==========
+// Модалка выбора одного или нескольких сборов
 const collectionsChecklistDiv = document.getElementById('collectionsChecklist');
 const selectModal = document.getElementById('selectCollectionsModal');
 const generateDocBtn = document.getElementById('generateDocBtn');
 const closeSelectModalBtn = document.getElementById('closeSelectModalBtn');
 const cancelSelectBtn = document.getElementById('cancelSelectBtn');
 
-// Показывает модалку для выбора сборов и возвращает Promise с массивом выбранных id.
 export function showCollectionSelector(collections, options = { singleSelect: false }) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!collections.length) {
-      reject(new Error('Нет сборов для выбора'));
+      resolve(null);
       return;
     }
+
+    const oldHandler = generateDocBtn.onclick;
 
     const renderCheckboxes = () => {
       collectionsChecklistDiv.innerHTML = collections.map(col => `
@@ -29,11 +30,10 @@ export function showCollectionSelector(collections, options = { singleSelect: fa
 
     const closeModal = () => {
       selectModal.style.display = 'none';
-      generateDocBtn.onclick = null;
+      generateDocBtn.onclick = oldHandler;
     };
 
-    const oldHandler = generateDocBtn.onclick;
-    generateDocBtn.onclick = () => {
+    const onConfirm = () => {
       const selected = getSelected();
       if (!selected.length) {
         alert('Выберите хотя бы один сбор');
@@ -43,15 +43,17 @@ export function showCollectionSelector(collections, options = { singleSelect: fa
       resolve(selected);
     };
 
-    const restoreHandler = () => {
-      generateDocBtn.onclick = oldHandler;
+    const onCancel = () => {
+      closeModal();
+      resolve(null); // разрешаем Promise с null – отмена
     };
 
-    closeSelectModalBtn.addEventListener('click', restoreHandler, { once: true });
-    cancelSelectBtn.addEventListener('click', restoreHandler, { once: true });
-    selectModal.addEventListener('click', (e) => {
-      if (e.target === selectModal) restoreHandler();
-    }, { once: true });
+    generateDocBtn.onclick = onConfirm;
+    closeSelectModalBtn.onclick = onCancel;
+    cancelSelectBtn.onclick = onCancel;
+    selectModal.onclick = (e) => {
+      if (e.target === selectModal) onCancel();
+    };
 
     renderCheckboxes();
     selectModal.style.display = 'flex';

@@ -9,6 +9,7 @@ const documentsRoutes = require('./routes/documents');
 const platoonsRoutes = require('./routes/platoons');
 const topicsRoutes = require('./routes/topics');
 const scoresRoutes = require('./routes/scores');
+const barracksRoutes = require('./routes/barracks');
 
 const app = express();
 const PORT = 3000;
@@ -27,6 +28,7 @@ app.use('/api', documentsRoutes);
 app.use('/api', platoonsRoutes);
 app.use('/api', topicsRoutes);
 app.use('/api', scoresRoutes);
+app.use('/api', barracksRoutes);
 
 // Замените на это: ( 192.168.0.125 )
 app.listen(PORT, '0.0.0.0', () => {

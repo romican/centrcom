@@ -1,7 +1,21 @@
 // ========== Обработчики кнопок «Сформировать» для каждого документа ==========
-import { fetchCollections, fetchSchoolsByCollections, fetchPlatoonsByCollection, generateSvodnaya, generateFizo, generateVremJournal, generateHygieneAct, generateWaterAct, generateCertificateAct } from './api.js';
+import { 
+  fetchCollections, 
+  fetchSchoolsByCollections, 
+  fetchPlatoonsByCollection, 
+  generateSvodnaya, 
+  generateFizo, 
+  generateVremJournal, 
+  generateHygieneAct, 
+  generateWaterAct, 
+  generateCertificateAct 
+} from './api.js';
 import { showCollectionSelector } from './modals/collectionSelector.js';
-import { showSchoolSelector, showPlatoonSelector, showTempJournalSchoolAndPlatoonSelector } from './modals/schoolSelector.js';
+import { 
+  showSchoolSelector, 
+  showPlatoonSelector, 
+  showTempJournalSchoolAndPlatoonSelector 
+} from './modals/schoolSelector.js';
 
 async function downloadBlob(blob, fileName) {
   const url = window.URL.createObjectURL(blob);
@@ -22,6 +36,8 @@ export async function handleSvodnaya() {
       return;
     }
     const selectedCollectionIds = await showCollectionSelector(collections);
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена или пустой выбор
+
     const schools = await fetchSchoolsByCollections(selectedCollectionIds);
     if (!schools.length) {
       alert('В выбранных сборах нет школ с участниками');
@@ -43,8 +59,10 @@ export async function handleFizo() {
       alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
       return;
     }
-    const selectedCollectionIds = await showCollectionSelector(collections);
+    const selectedCollectionIds = await showCollectionSelector(collections, { singleSelect: true });
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена
     const collectionId = selectedCollectionIds[0];
+
     const platoons = await fetchPlatoonsByCollection(collectionId);
     if (!platoons.length) {
       alert('В выбранном сборе нет взводов. Сначала создайте взвода в разделе "Взвода".');
@@ -67,16 +85,17 @@ export async function handleVremJournal() {
       return;
     }
     const selectedCollectionIds = await showCollectionSelector(collections);
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена
+
     const schools = await fetchSchoolsByCollections(selectedCollectionIds);
     if (!schools.length) {
       alert('В выбранных сборах нет школ с участниками');
       return;
     }
     const result = await showTempJournalSchoolAndPlatoonSelector(schools);
-    if (result) {
-      const blob = await generateVremJournal(result.schoolId, result.platoonId);
-      downloadBlob(blob, `Vremenny_jurnal_${Date.now()}.xlsx`);
-    }
+    if (!result) return; // отмена
+    const blob = await generateVremJournal(result.schoolId, result.platoonId);
+    downloadBlob(blob, `Vremenny_jurnal_${Date.now()}.xlsx`);
   } catch (err) {
     alert('Ошибка: ' + err.message);
   }
@@ -89,8 +108,10 @@ export async function handleHygieneAct() {
       alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
       return;
     }
-    const selectedCollectionIds = await showCollectionSelector(collections);
+    const selectedCollectionIds = await showCollectionSelector(collections, { singleSelect: true });
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена
     const collectionId = selectedCollectionIds[0];
+
     const blob = await generateHygieneAct(collectionId);
     downloadBlob(blob, `Akt_hygiene_${Date.now()}.xlsx`);
   } catch (err) {
@@ -105,8 +126,10 @@ export async function handleWaterAct() {
       alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
       return;
     }
-    const selectedCollectionIds = await showCollectionSelector(collections);
+    const selectedCollectionIds = await showCollectionSelector(collections, { singleSelect: true });
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена
     const collectionId = selectedCollectionIds[0];
+
     const blob = await generateWaterAct(collectionId);
     downloadBlob(blob, `Akt_water_${Date.now()}.xlsx`);
   } catch (err) {
@@ -121,8 +144,10 @@ export async function handleCertificateAct() {
       alert('Нет доступных сборов. Сначала создайте сборы в разделе "Сборы".');
       return;
     }
-    const selectedCollectionIds = await showCollectionSelector(collections);
+    const selectedCollectionIds = await showCollectionSelector(collections, { singleSelect: true });
+    if (!selectedCollectionIds || selectedCollectionIds.length === 0) return; // отмена
     const collectionId = selectedCollectionIds[0];
+
     const blob = await generateCertificateAct(collectionId);
     downloadBlob(blob, `Akt_certificate_${Date.now()}.xlsx`);
   } catch (err) {

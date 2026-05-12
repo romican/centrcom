@@ -99,7 +99,7 @@ window.switchSection = function(section) {
   } else {
     if (logisticsSubmenu) logisticsSubmenu.classList.remove('show');
   }
-  if (section === 'collections' || section === 'platoons' || section === 'documents' || section === 'topics' || section === 'scores') {
+  if (section === 'collections' || section === 'platoons' || section === 'barracks' || section === 'documents' || section === 'topics' || section === 'scores') {
     if (collectionsSubmenu) collectionsSubmenu.classList.add('show');
   } else {
     if (collectionsSubmenu) collectionsSubmenu.classList.remove('show');
@@ -108,10 +108,8 @@ window.switchSection = function(section) {
   // Обработка разделов
   if (section === 'buses') {
     window.sectionTitle.innerText = 'Логистика';
-    if (window.addButton) {
-      window.addButton.style.display = 'flex';
-      window.addButton.onclick = () => window.openBusModal();
-    }
+    if (window.addButton) window.addButton.style.display = 'flex';
+    window.addButton.onclick = () => window.openBusModal();
     if (window.loadBuses) window.loadBuses();
   } else if (section === 'logistics-docs') {
     window.sectionTitle.innerText = 'Документы (логистика)';
@@ -125,6 +123,10 @@ window.switchSection = function(section) {
     window.sectionTitle.innerText = 'Взвода';
     if (window.addButton) window.addButton.style.display = 'none';
     if (window.renderPlatoons) window.renderPlatoons();
+  } else if (section === 'barracks') {
+    window.sectionTitle.innerText = 'Казармы';
+    if (window.addButton) window.addButton.style.display = 'none';
+    if (window.renderBarracks) window.renderBarracks();
   } else if (section === 'documents') {
     window.sectionTitle.innerText = 'Документы (сборы)';
     if (window.addButton) window.addButton.style.display = 'none';
@@ -139,17 +141,13 @@ window.switchSection = function(section) {
     if (window.renderScores) window.renderScores();
   } else if (section === 'invoices') {
     window.sectionTitle.innerText = 'Счета';
-    if (window.addButton) {
-      window.addButton.style.display = 'flex';
-      window.addButton.onclick = () => window.openInvoiceModal();
-    }
+    if (window.addButton) window.addButton.style.display = 'flex';
+    window.addButton.onclick = () => window.openInvoiceModal();
     if (window.loadInvoices) window.loadInvoices();
   } else if (section === 'employees') {
     window.sectionTitle.innerText = 'Сотрудники';
-    if (window.addButton) {
-      window.addButton.style.display = 'flex';
-      window.addButton.onclick = () => window.openEmployeeModal();
-    }
+    if (window.addButton) window.addButton.style.display = 'flex';
+    window.addButton.onclick = () => window.openEmployeeModal();
     if (window.loadEmployees) window.loadEmployees();
   }
 };
@@ -174,7 +172,7 @@ if (window.toggleBtn) {
 window.addEventListener('load', function() {
   setTimeout(() => {
     const savedSection = localStorage.getItem('activeSection');
-    const validSections = ['buses', 'logistics-docs', 'collections', 'platoons', 'documents', 'topics', 'scores', 'invoices', 'employees'];
+    const validSections = ['buses', 'logistics-docs', 'collections', 'platoons', 'barracks', 'documents', 'topics', 'scores', 'invoices', 'employees'];
     if (savedSection && validSections.includes(savedSection)) {
       const activeNav = document.querySelector(`.nav-item[data-section="${savedSection}"]`);
       if (activeNav) {
