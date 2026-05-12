@@ -4,17 +4,17 @@ export async function fetchCollections() {
   return resp.json();
 }
 
-export async function fetchBarracks() {
-  const resp = await fetch('/api/barracks');
+export async function fetchBarracks(collectionId) {
+  const resp = await fetch(`/api/barracks?collectionId=${collectionId}`);
   if (!resp.ok) throw new Error('Ошибка загрузки казарм');
   return resp.json();
 }
 
-export async function addBarrack(name) {
+export async function addBarrack(name, collectionId) {
   const resp = await fetch('/api/barracks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ name, collectionId })
   });
   if (!resp.ok) throw new Error('Ошибка добавления казармы');
   return resp.json();

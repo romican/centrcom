@@ -1,8 +1,7 @@
-/* ========== КАЗАРМЫ ========== */
 .barracks-container { display: flex; gap: 24px; }
 .barracks-sidebar { width: 300px; background: white; border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); padding: 20px; }
 .select-collection { margin-bottom: 16px; }
-.barracks-collection-select { width: 100%; padding: 10px; border-radius: 16px; border: 1px solid #e2e8f0; background: white; font-family: inherit; }
+.barracks-collection-select { width: 100%; padding: 10px; border-radius: 16px; border: 1px solid #e2e8f0; background: white; font-family: inherit; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; }
 .barracks-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px; }
 .add-barrack-btn, .add-location-btn { background: #3b82f6; color: white; border: none; border-radius: 40px; padding: 8px 16px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
 .add-barrack-btn:hover, .add-location-btn:hover { background: #2563eb; transform: translateY(-1px); }
@@ -32,7 +31,26 @@
 .unassign-school { background: #ef4444; color: white; }
 .unassign-school:hover { background: #dc2626; transform: scale(1.05); }
 
-/* Тёмная тема */
+/* Правая информационная панель (исправленное выравнивание – содержимое не по центру) */
+.barracks-info-panel { width: 340px; background: #ffffff; border-radius: 28px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08); padding: 20px; overflow-y: auto; transition: all 0.2s; }
+.barracks-info-panel h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2ff; display: flex; align-items: center; gap: 10px; color: #1e293b; }
+.barracks-info-panel h3 i { color: #3b82f6; }
+.info-placeholder { text-align: center; padding: 30px 20px; color: #94a3b8; font-size: 0.9rem; }
+.info-placeholder i { font-size: 2rem; margin-bottom: 10px; display: block; }
+.info-list { display: flex; flex-direction: column; gap: 20px; text-align: left; }
+.info-barrack-card { background: #f8fafc; border-radius: 20px; padding: 16px; transition: all 0.2s; border: 1px solid #e2e8f0; text-align: left; }
+.info-barrack-card:hover { background: #ffffff; box-shadow: 0 8px 20px rgba(0,0,0,0.05); transform: translateY(-2px); }
+.info-barrack-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px dashed #cbd5e1; }
+.info-barrack-title i { color: #3b82f6; font-size: 1.1rem; }
+.info-location-card { background: white; border-radius: 16px; padding: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; text-align: left; }
+.info-location-title { font-size: 0.9rem; font-weight: 600; color: #2563eb; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.info-total-people { font-weight: normal; color: #10b981; margin-left: auto; font-size: 0.8rem; }
+.info-schools-list { display: flex; flex-direction: column; gap: 8px; }
+.info-school-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; padding: 6px 8px; background: #fefce8; border-radius: 12px; color: #1e293b; text-align: left; }
+.info-school-item i { color: #3b82f6; width: 18px; }
+.school-count { margin-left: auto; font-weight: 500; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; }
+.info-empty { color: #94a3b8; font-size: 0.8rem; font-style: italic; padding: 8px; text-align: center; }
+
 body.dark-theme .barracks-sidebar, body.dark-theme .barracks-main { background: #1e293b; }
 body.dark-theme .barracks-collection-select { background: #0f172a; border-color: #334155; color: white; }
 body.dark-theme .barrack-item, body.dark-theme .location-item { background: #334155; color: #e2e8f0; }
@@ -47,3 +65,15 @@ body.dark-theme .schools-list li span { color: #e2e8f0; }
 body.dark-theme .schools-list li:hover { border-color: #475569; background: #0f172a; }
 body.dark-theme .add-barrack-btn, body.dark-theme .add-location-btn { background: #2563eb; }
 body.dark-theme .add-barrack-btn:hover, body.dark-theme .add-location-btn:hover { background: #1d4ed8; }
+body.dark-theme .barracks-info-panel { background: #1e293b; }
+body.dark-theme .barracks-info-panel h3 { color: #e2e8f0; border-bottom-color: #334155; }
+body.dark-theme .info-barrack-card { background: #0f172a; border-color: #334155; }
+body.dark-theme .info-barrack-card:hover { background: #1e293b; }
+body.dark-theme .info-barrack-title { color: #e2e8f0; }
+body.dark-theme .info-location-card { background: #1e293b; border-color: #334155; }
+body.dark-theme .info-location-title { color: #60a5fa; }
+body.dark-theme .info-school-item { background: #1e3a5f; color: #cbd5e1; }
+body.dark-theme .school-count { background: #334155; color: #94a3b8; }
+
+.info-list, .info-barrack-card, .info-location-card, .info-schools-list, .info-school-item { text-align: left !important; }
+.info-barrack-card, .info-location-card { display: block !important; }

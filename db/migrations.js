@@ -4,14 +4,14 @@ const path = require('path');
 const db = new sqlite3.Database(path.join(__dirname, '..', 'buses.db'));
 
 function runMigrations() {
-  // 1. Добавление колонок для старых таблиц (если их нет)
+  // Для старых баз – добавить колонки, если их нет
   db.all("PRAGMA table_info(collection_schools)", (err, columns) => {
     if (err || !columns) return;
     const hasHeadTeacher = columns.some(c => c.name === 'head_teacher');
     if (!hasHeadTeacher) {
       db.run("ALTER TABLE collection_schools ADD COLUMN head_teacher TEXT", (err) => {
         if (err) console.error('Ошибка добавления head_teacher:', err);
-        else console.log('✓ Добавлена колонка head_teacher в collection_schools');
+        else console.log('✓ Добавлена колонка head_teacher');
       });
     }
   });
@@ -22,21 +22,19 @@ function runMigrations() {
     if (!hasPlatoonId) {
       db.run("ALTER TABLE collection_people ADD COLUMN platoon_id INTEGER REFERENCES platoons(id)", (err) => {
         if (err) console.error('Ошибка добавления platoon_id:', err);
-        else console.log('✓ Добавлена колонка platoon_id в collection_people');
+        else console.log('✓ Добавлена колонка platoon_id');
       });
     }
   });
 
-  // 2. Создание таблиц для казарм (если их нет)
+  // Таблицы казарм
   db.run(`
     CREATE TABLE IF NOT EXISTS barracks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL
+      name TEXT NOT NULL,
+      collection_id INTEGER REFERENCES collections(id) ON DELETE CASCADE
     )
-  `, (err) => {
-    if (err) console.error('Ошибка создания таблицы barracks:', err);
-    else console.log('✓ Таблица barracks готова');
-  });
+  `, (err) => { if (err) console.error(err); else console.log('✓ Таблица barracks готова'); });
 
   db.run(`
     CREATE TABLE IF NOT EXISTS barracks_locations (
@@ -45,10 +43,7 @@ function runMigrations() {
       name TEXT NOT NULL,
       FOREIGN KEY (barrack_id) REFERENCES barracks(id) ON DELETE CASCADE
     )
-  `, (err) => {
-    if (err) console.error('Ошибка создания таблицы barracks_locations:', err);
-    else console.log('✓ Таблица barracks_locations готова');
-  });
+  `, (err) => { if (err) console.error(err); else console.log('✓ Таблица barracks_locations готова'); });
 
   db.run(`
     CREATE TABLE IF NOT EXISTS school_barracks (
@@ -58,9 +53,18 @@ function runMigrations() {
       FOREIGN KEY (school_id) REFERENCES collection_schools(id) ON DELETE CASCADE,
       FOREIGN KEY (location_id) REFERENCES barracks_locations(id) ON DELETE CASCADE
     )
-  `, (err) => {
-    if (err) console.error('Ошибка создания таблицы school_barracks:', err);
-    else console.log('✓ Таблица school_barracks готова');
+  `, (err) => { if (err) console.error(err); else console.log('✓ Таблица school_barracks готова'); });
+
+  // Добавляем колонку collection_id, если она ещё не существует (для старых баз)
+  db.all("PRAGMA table_info(barracks)", (err, columns) => {
+    if (err || !columns) return;
+    const hasCollectionId = columns.some(c => c.name === 'collection_id');
+    if (!hasCollectionId) {
+      db.run("ALTER TABLE barracks ADD COLUMN collection_id INTEGER REFERENCES collections(id)", (err) => {
+        if (err) console.error('Ошибка добавления collection_id в barracks:', err);
+        else console.log('✓ Добавлена колонка collection_id в таблицу barracks');
+      });
+    }
   });
 }
 

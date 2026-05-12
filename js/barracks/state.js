@@ -1,4 +1,5 @@
 export let barracks_currentCollectionId = null;
+export let barracks_currentCollectionMilitaryUnit = '';
 export let barracks_currentBarracksId = null;
 export let barracks_currentLocationId = null;
 export let barracks_allBarracks = [];
@@ -7,6 +8,7 @@ export let barracks_unassignedSchools = [];
 export let barracks_assignedSchools = [];
 
 export function setCurrentCollectionId(id) { barracks_currentCollectionId = id; }
+export function setCurrentCollectionMilitaryUnit(unit) { barracks_currentCollectionMilitaryUnit = unit; }
 export function setCurrentBarracksId(id) { barracks_currentBarracksId = id; }
 export function setCurrentLocationId(id) { barracks_currentLocationId = id; }
 export function setAllBarracks(list) { barracks_allBarracks = list; }

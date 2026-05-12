@@ -2,18 +2,20 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/connection');
 
-// ========== КАЗАРМЫ ==========
+// ========== КАЗАРМЫ (с привязкой к сбору) ==========
 router.get('/barracks', (req, res) => {
-  db.all('SELECT * FROM barracks ORDER BY name', (err, rows) => {
+  const { collectionId } = req.query;
+  if (!collectionId) return res.status(400).json({ error: 'Не указан сбор' });
+  db.all('SELECT * FROM barracks WHERE collection_id = ? ORDER BY name', [collectionId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 router.post('/barracks', (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'Название обязательно' });
-  db.run('INSERT INTO barracks (name) VALUES (?)', [name], function(err) {
+  const { name, collectionId } = req.body;
+  if (!name || !collectionId) return res.status(400).json({ error: 'Название и сбор обязательны' });
+  db.run('INSERT INTO barracks (name, collection_id) VALUES (?, ?)', [name, collectionId], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, message: 'Казарма добавлена' });
   });
@@ -74,16 +76,18 @@ router.delete('/locations/:id', (req, res) => {
   });
 });
 
-// ========== ШКОЛЫ (с учётом выбранного сбора) ==========
+// ========== ШКОЛЫ (с учётом выбранного сбора и количеством участников) ==========
 router.get('/locations/:locationId/schools', (req, res) => {
   const { locationId } = req.params;
   const { collectionId } = req.query;
   if (!collectionId) return res.status(400).json({ error: 'Не указан сбор' });
   db.all(`
-    SELECT s.id, s.edu_org, s.head_teacher
+    SELECT s.id, s.edu_org, s.head_teacher, COUNT(p.id) as people_count
     FROM collection_schools s
+    LEFT JOIN collection_people p ON p.school_id = s.id
     JOIN school_barracks sb ON s.id = sb.school_id
     WHERE sb.location_id = ? AND s.collection_id = ?
+    GROUP BY s.id
     ORDER BY s.edu_org
   `, [locationId, collectionId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -96,10 +100,12 @@ router.get('/locations/:locationId/unassigned-schools', (req, res) => {
   const { collectionId } = req.query;
   if (!collectionId) return res.status(400).json({ error: 'Не указан сбор' });
   db.all(`
-    SELECT id, edu_org, head_teacher
-    FROM collection_schools
-    WHERE collection_id = ? AND id NOT IN (SELECT school_id FROM school_barracks WHERE location_id = ?)
-    ORDER BY edu_org
+    SELECT s.id, s.edu_org, s.head_teacher, COUNT(p.id) as people_count
+    FROM collection_schools s
+    LEFT JOIN collection_people p ON p.school_id = s.id
+    WHERE s.collection_id = ? AND s.id NOT IN (SELECT school_id FROM school_barracks WHERE location_id = ?)
+    GROUP BY s.id
+    ORDER BY s.edu_org
   `, [collectionId, locationId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
