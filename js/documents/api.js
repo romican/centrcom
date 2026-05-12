@@ -1,6 +1,4 @@
 // ========== API-вызовы для документов ==========
-// Все функции возвращают Promise с blob (или json, если нужно)
-
 export async function fetchCollections() {
   const resp = await fetch('/api/collections');
   if (!resp.ok) throw new Error('Ошибка загрузки списка сборов');

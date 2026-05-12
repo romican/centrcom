@@ -20,3 +20,17 @@ body.dark-theme .doc-card-btn.edit { background: #334155; color: #e2e8f0; }
 .doc-card-btn.edit:hover { background: #cbd5e1; transform: scale(1.02); }
 body.dark-theme .doc-card-btn.edit:hover { background: #475569; }
 @media (max-width: 768px) { .doc-cards-grid { grid-template-columns: 1fr; } }
+.doc-card-btn.print {
+  background: #334155;
+  color: white;
+}
+.doc-card-btn.print:hover {
+  background: #1e293b;
+  transform: scale(1.02);
+}
+body.dark-theme .doc-card-btn.print {
+  background: #475569;
+}
+body.dark-theme .doc-card-btn.print:hover {
+  background: #64748b;
+}
