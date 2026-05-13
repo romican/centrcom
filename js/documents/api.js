@@ -96,3 +96,16 @@ export async function generateCertificateAct(collectionId) {
   if (!resp.ok) throw new Error('Ошибка генерации');
   return resp.blob();
 }
+
+export async function generateGraphDisinfection(barrackId, collectionId) {
+  const resp = await fetch('/api/generate-graph-disinfection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ barrackId, collectionId })
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error || 'Ошибка генерации графика дезинфекции');
+  }
+  return resp.blob();
+}

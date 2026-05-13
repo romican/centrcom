@@ -1,6 +1,6 @@
 import * as handlers from './handlers.js';
 
-// Кастомная модалка-заглушка
+// Кастомная модалка-заглушка для «Печать»
 function showNotAvailableModal() {
   return new Promise((resolve) => {
     const modal = document.createElement('div');
@@ -67,6 +67,13 @@ export function renderDocuments() {
               <button class="doc-card-btn print" data-doc="certificate"><i class="fas fa-print"></i> Печать</button>
             </div>
           </div>
+          <div class="doc-card" data-doc="graph_disinfection">
+            <div class="doc-card-title">График дезинфекции воздушной среды</div>
+            <div class="doc-card-buttons">
+              <button class="doc-card-btn generate" data-doc="graph_disinfection"><i class="fas fa-download"></i> Скачать</button>
+              <button class="doc-card-btn print" data-doc="graph_disinfection"><i class="fas fa-print"></i> Печать</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="doc-column">
@@ -97,6 +104,7 @@ export function renderDocuments() {
         case 'hygiene': await handlers.handleHygieneAct(); break;
         case 'water': await handlers.handleWaterAct(); break;
         case 'certificate': await handlers.handleCertificateAct(); break;
+        case 'graph_disinfection': await handlers.handleGraphDisinfection(); break;
         default: break;
       }
     });

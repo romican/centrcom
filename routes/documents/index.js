@@ -8,6 +8,7 @@ const generateVremJurnal = require('./vremJurnalDoc');
 const generateHygieneAct = require('./hygieneActDoc');
 const generateWaterAct = require('./waterActDoc');
 const generateCertificateAct = require('./certificateActDoc');
+const generateGraphDisinfection = require('./graphDisinfectionDoc');
 
 router.post('/schools/by-collections', (req, res) => {
   const { collectionIds } = req.body;
@@ -35,5 +36,6 @@ router.post('/generate-vrem-jurnal', generateVremJurnal);
 router.post('/generate-hygiene-act', generateHygieneAct);
 router.post('/generate-water-act', generateWaterAct);
 router.post('/generate-certificate-act', generateCertificateAct);
+router.post('/generate-graph-disinfection', generateGraphDisinfection);
 
 module.exports = router;
